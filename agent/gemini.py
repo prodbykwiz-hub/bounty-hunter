@@ -1,4 +1,4 @@
-"""Клиент Gemini (REST generateContent) с поддержкой function calling."""
+"""Клиент Gemini (REST generateContent). Только тексты сообщений — код пишет Claude."""
 
 from __future__ import annotations
 
@@ -29,19 +29,12 @@ class Gemini:
         self.session = requests.Session()
         self.session.headers.update({"x-goog-api-key": api_key, "Content-Type": "application/json"})
 
-    def generate(self, system: str, contents: list[dict[str, Any]],
-                 tools: list[dict[str, Any]] | None = None, json_mode: bool = False) -> dict[str, Any]:
-        """Возвращает content ответа модели ({"role": "model", "parts": [...]}).
-
-        Content надо класть в историю как есть: у Gemini 3 в parts лежат thought
-        signatures, без которых следующий запрос с function calling отклоняется.
-        """
+    def generate(self, system: str, contents: list[dict[str, Any]], json_mode: bool = False) -> dict[str, Any]:
+        """Возвращает content ответа модели ({"role": "model", "parts": [...]})."""
         body: dict[str, Any] = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": contents,
         }
-        if tools:
-            body["tools"] = [{"functionDeclarations": tools}]
         if json_mode:
             body["generationConfig"] = {"responseMimeType": "application/json"}
 
@@ -105,7 +98,3 @@ def is_zero_quota(body: str) -> bool:
 def response_text(content: dict[str, Any]) -> str:
     # Части с thought=True — внутренние размышления модели, в ответ их не берём.
     return "".join(p.get("text", "") for p in content.get("parts", []) if not p.get("thought")).strip()
-
-
-def function_calls(content: dict[str, Any]) -> list[dict[str, Any]]:
-    return [p["functionCall"] for p in content.get("parts", []) if "functionCall" in p]

@@ -54,10 +54,13 @@ def issue_link(task: Task) -> str:
 
 
 class App:
-    def __init__(self, cfg: AgentConfig, bot: Bot, gemini: Gemini, gh: GitHub, store: TaskStore) -> None:
+    def __init__(self, cfg: AgentConfig, bot: Bot, gemini: Gemini, gh: GitHub, store: TaskStore,
+                 claude: coder.ClaudeCoder | None = None) -> None:
         self.cfg = cfg
         self.bot = bot
+        # Gemini пишет только сообщения; код — только Claude.
         self.gemini = gemini
+        self.claude = claude or coder.ClaudeCoder(cfg.claude_bin, cfg.claude_model, cfg.coder_timeout)
         self.gh = gh
         self.store = store
         self.callbacks: dict[str, Callable[[str], None]] = {
@@ -363,13 +366,12 @@ class App:
                 task.workdir = str(path)
                 self.store.put(task)
                 rework = False
-            ws = workspace.Workspace(path)
             current = workspace.diff(path, task.base_sha)[1] if rework else ""
-            prompt = coder.task_prompt(issue, ws.list_dir("."), task.instructions if rework else [], current)
-            result = coder.solve(self.gemini, ws, prompt, self.cfg.max_coder_steps)
+            prompt = coder.task_prompt(issue, task.instructions if rework else [], current)
+            result = self.claude.solve(path, prompt)
             workspace.commit_all(path, result["commit_message"], self.cfg.github_user, self.gh.noreply_email())
             stat, patch = workspace.diff(path, task.base_sha)
-        except (workspace.GitError, coder.CoderError, GeminiError, GhError) as exc:
+        except (workspace.GitError, coder.CoderError, GhError) as exc:
             log.warning("Работа над %s#%d не удалась: %s", task.repo, task.number, exc)
             self._offer_retry(task, f"не получилось: {str(exc)[:400]}")
             return
@@ -387,7 +389,7 @@ class App:
             f"🧩 <b>готово: {issue_link(task)}</b>",
             f"<blockquote>{esc(task.summary)}</blockquote>",
             f"<pre>{esc(stat[-1500:])}</pre>",
-            f"📁 <code>{esc(task.workdir)}</code>\nкоманды модель не запускала: прогони тесты сам перед PR",
+            f"📁 <code>{esc(task.workdir)}</code>\nкод писал claude без запуска команд: прогони тесты сам перед PR",
             "<i>ответь на это сообщение, чтобы доработать</i>",
         ])
         msg_id = self.bot.send(text, keyboard([("🚀 открыть PR", f"pr:{task.key}"), ("🗑 отказаться", f"drop:{task.key}")]))
@@ -463,11 +465,15 @@ def main() -> int:
     except ConfigError as exc:
         log.error("Ошибка конфигурации: %s", exc)
         return 1
+    claude = coder.ClaudeCoder(cfg.claude_bin, cfg.claude_model, cfg.coder_timeout)
+    if not claude.available():
+        log.error("Не найден %s: установи Claude Code CLI или укажи путь в CLAUDE_BIN", cfg.claude_bin)
+        return 1
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
     try:
         gh = GitHub(cfg.github_user)
         app = App(cfg, Bot(cfg.tg_bot_token, cfg.tg_chat_id), Gemini(cfg.gemini_api_key, cfg.gemini_model),
-                  gh, TaskStore(cfg.state_file))
+                  gh, TaskStore(cfg.state_file), claude)
         app.run_forever()
     except AccountMismatch as exc:
         log.error("%s", exc)

@@ -59,7 +59,10 @@ class AgentConfig:
     state_file: Path
     style_file: Path
     watch_interval: int
-    max_coder_steps: int
+    # Код пишет Claude Code CLI; Gemini — только тексты сообщений.
+    claude_bin: str = "claude"
+    claude_model: str = ""
+    coder_timeout: int = 1800
 
     @classmethod
     def from_env(cls) -> AgentConfig:
@@ -83,11 +86,14 @@ class AgentConfig:
             tg_chat_id=required["TG_CHAT_ID"],
             tg_owner_id=owner_id,
             gemini_api_key=required["GEMINI_API_KEY"],
-            gemini_model=_env("GEMINI_MODEL", "gemini-3.1-pro-preview"),
+            # Pro (gemini-3.1-pro-preview) доступна только с оплатой: на бесплатном тарифе квота 0.
+            gemini_model=_env("GEMINI_MODEL", "gemini-3.8-flash"),
             github_user=_env("GITHUB_USER", "prodbykwiz-hub"),
             work_dir=Path(_env("WORK_DIR", str(Path.home() / "bounty-work"))).expanduser(),
             state_file=Path(_env("AGENT_STATE_FILE", str(PROJECT_ROOT / "agent_state.json"))),
             style_file=Path(_env("STYLE_FILE", str(PROJECT_ROOT / "agent" / "style.md"))),
             watch_interval=_env_int("WATCH_INTERVAL", 300, minimum=60),
-            max_coder_steps=_env_int("MAX_CODER_STEPS", 60),
+            claude_bin=_env("CLAUDE_BIN", "claude"),
+            claude_model=_env("CLAUDE_MODEL"),
+            coder_timeout=_env_int("CODER_TIMEOUT", 1800, minimum=60),
         )
