@@ -84,7 +84,7 @@ class AgentConfig:
             tg_owner_id=owner_id,
             gemini_api_key=required["GEMINI_API_KEY"],
             gemini_model=_env("GEMINI_MODEL", "gemini-3.1-pro-preview"),
-            github_user=_env("GITHUB_USER", "prodbykwiz"),
+            github_user=_env("GITHUB_USER", "prodbykwiz-hub"),
             work_dir=Path(_env("WORK_DIR", str(Path.home() / "bounty-work"))).expanduser(),
             state_file=Path(_env("AGENT_STATE_FILE", str(PROJECT_ROOT / "agent_state.json"))),
             style_file=Path(_env("STYLE_FILE", str(PROJECT_ROOT / "agent" / "style.md"))),

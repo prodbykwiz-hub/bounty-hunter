@@ -138,7 +138,7 @@ def main() -> int:
     values = read_env(ENV_FILE)
     values.setdefault("GEMINI_MODEL", DEFAULT_MODEL)
     values["GEMINI_MODEL"] = values["GEMINI_MODEL"] or DEFAULT_MODEL
-    values["GITHUB_USER"] = values.get("GITHUB_USER") or "prodbykwiz"
+    values["GITHUB_USER"] = values.get("GITHUB_USER") or "prodbykwiz-hub"
     try:
         print("== Telegram ==")
         token = ask_secret("токен бота от @BotFather", values.get("TG_BOT_TOKEN", ""))
