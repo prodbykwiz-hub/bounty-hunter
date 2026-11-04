@@ -48,6 +48,8 @@ class Task:
     reported_comment_ids: list[int] = field(default_factory=list)
     branch: str = ""
     workdir: str = ""
+    base_sha: str = ""
+    commit_message: str = ""
     summary: str = ""
     instructions: list[str] = field(default_factory=list)
     pr_url: str = ""

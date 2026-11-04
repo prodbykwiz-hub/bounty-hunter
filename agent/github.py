@@ -8,6 +8,7 @@ import logging
 import re
 import shutil
 import subprocess
+import time
 from typing import Any
 
 log = logging.getLogger("bounty_agent")
@@ -139,3 +140,27 @@ class GitHub:
         self.ensure_account()
         result = self.api(f"repos/{repo}/issues/{number}/comments", method="POST", payload={"body": body})
         return {"id": result["id"], "url": result["html_url"]}
+
+    def noreply_email(self) -> str:
+        # Публичные коммиты подписываем noreply-адресом, чтобы не светить личную почту.
+        user = self.api("user")
+        return f"{user['id']}+{user['login']}@users.noreply.github.com"
+
+    def fork(self, repo: str) -> str:
+        """Создаёт форк (или возвращает существующий) и ждёт, пока он станет доступен."""
+        self.ensure_account()
+        full_name = self.api(f"repos/{repo}/forks", method="POST", payload={"default_branch_only": True})["full_name"]
+        for _ in range(12):
+            try:
+                self.api(f"repos/{full_name}")
+                return full_name
+            except GhError:
+                time.sleep(5)
+        raise GhError(f"форк {full_name} так и не стал доступен")
+
+    def create_pr(self, repo: str, head: str, base: str, title: str, body: str) -> str:
+        self.ensure_account()
+        result = self.api(f"repos/{repo}/pulls", method="POST", payload={
+            "title": title, "head": head, "base": base, "body": body, "maintainer_can_modify": True,
+        })
+        return result["html_url"]

@@ -7,14 +7,16 @@ import logging
 import sys
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Callable
 
-from agent import prompts
+from agent import coder, prompts, workspace
 from agent.config import AgentConfig, ConfigError
 from agent.gemini import Gemini, GeminiError
 from agent.github import AccountMismatch, GhError, GitHub
 from agent.state import (
-    ACTIVE_STAGES, AWAITING_POST, DRAFTING, DROPPED, POSTED, WORKING, Task, TaskStore, utc_now,
+    ACTIVE_STAGES, AWAITING_POST, DRAFTING, DROPPED, POSTED, PR_OPENED, REVIEW, WORKING, Task, TaskStore,
+    utc_now,
 )
 from agent.telegram import Bot, TelegramError, keyboard
 
@@ -30,6 +32,8 @@ CALLBACK_ACK = {
     "post": "отправляю…",
     "redo": "переписываю…",
     "drop": "отменено",
+    "work": "запускаю…",
+    "pr": "открываю PR…",
 }
 
 
@@ -62,6 +66,8 @@ class App:
             "post": self.on_post,
             "redo": self.on_redo,
             "drop": self.on_drop,
+            "work": self.on_work,
+            "pr": self.on_pr,
         }
 
     # ------------------------------------------------------------ loop
@@ -69,6 +75,9 @@ class App:
     def run_forever(self) -> None:
         self.gh.ensure_account()
         log.info("Агент запущен: gh=%s, модель=%s", self.cfg.github_user, self.cfg.gemini_model)
+        # Работа, прерванная перезапуском агента, сама не продолжится — предлагаем перезапуск.
+        for task in self.store.by_stage(WORKING):
+            self._offer_retry(task, "агент перезапускался, работа прервана")
         next_watch = 0.0
         while True:
             if time.monotonic() >= next_watch:
@@ -240,13 +249,23 @@ class App:
         if task and task.stage in ACTIVE_STAGES:
             task.stage = DROPPED
             self.store.put(task)
-            self.bot.send(f"отменил {issue_link(task)}")
+            note = f"\nрабочая копия осталась в <code>{esc(task.workdir)}</code>" if task.workdir else ""
+            self.bot.send(f"отменил {issue_link(task)}{note}")
 
     def on_instruction(self, task: Task, text: str) -> None:
         if task.stage in (DRAFTING, AWAITING_POST):
             task.instructions.append(text)
             self.store.put(task)
             self.on_redo(task.key)
+        elif task.stage == REVIEW:
+            task.instructions.append(text)
+            task.stage = WORKING
+            self.store.put(task)
+            issue = self.gh.issue(task.key)
+            if issue is None:
+                self._drop(task, f"{issue_link(task)} удалён, снимаю задачу")
+                return
+            self.start_work(task, issue, rework=True)
         else:
             self.bot.send(f"{issue_link(task)} сейчас в статусе {task.stage}, правка не применима")
 
@@ -322,7 +341,109 @@ class App:
     def on_consent(self, task: Task, issue: dict[str, Any], reason: str) -> None:
         task.stage = WORKING
         self.store.put(task)
-        self.bot.send(f"🟢 согласие по {issue_link(task)}: {esc(reason)}")
+        self.bot.send(f"🟢 согласие по {issue_link(task)}: {esc(reason)}\nначинаю работу")
+        self.start_work(task, issue)
+
+    # ------------------------------------------------------------ work
+
+    def _offer_retry(self, task: Task, reason: str) -> None:
+        msg_id = self.bot.send(
+            f"⚠️ {issue_link(task)}: {esc(reason)}",
+            keyboard([("🔁 ещё раз", f"work:{task.key}"), ("отказаться", f"drop:{task.key}")]),
+        )
+        task.message_ids.append(msg_id)
+        self.store.put(task)
+
+    def start_work(self, task: Task, issue: dict[str, Any], rework: bool = False) -> None:
+        try:
+            path = Path(task.workdir) if task.workdir else None
+            if not rework or path is None or not path.exists():
+                task.branch = task.branch or f"bounty/{task.number}-{workspace.slugify(task.title)}"
+                path, task.base_sha = workspace.prepare(self.cfg.work_dir, task.repo, issue["default_branch"], task.branch)
+                task.workdir = str(path)
+                self.store.put(task)
+                rework = False
+            ws = workspace.Workspace(path)
+            current = workspace.diff(path, task.base_sha)[1] if rework else ""
+            prompt = coder.task_prompt(issue, ws.list_dir("."), task.instructions if rework else [], current)
+            result = coder.solve(self.gemini, ws, prompt, self.cfg.max_coder_steps)
+            workspace.commit_all(path, result["commit_message"], self.cfg.github_user, self.gh.noreply_email())
+            stat, patch = workspace.diff(path, task.base_sha)
+        except (workspace.GitError, coder.CoderError, GeminiError, GhError) as exc:
+            log.warning("Работа над %s#%d не удалась: %s", task.repo, task.number, exc)
+            self._offer_retry(task, f"не получилось: {str(exc)[:400]}")
+            return
+        if not patch.strip():
+            self._offer_retry(task, "изменений нет")
+            return
+        task.summary, task.commit_message = result["summary"], result["commit_message"]
+        task.instructions = []
+        task.stage = REVIEW
+        self.store.put(task)
+        self.send_review(task, stat, patch)
+
+    def send_review(self, task: Task, stat: str, patch: str) -> None:
+        text = "\n\n".join([
+            f"🧩 <b>готово: {issue_link(task)}</b>",
+            f"<blockquote>{esc(task.summary)}</blockquote>",
+            f"<pre>{esc(stat[-1500:])}</pre>",
+            f"📁 <code>{esc(task.workdir)}</code>\nкоманды модель не запускала: прогони тесты сам перед PR",
+            "<i>ответь на это сообщение, чтобы доработать</i>",
+        ])
+        msg_id = self.bot.send(text, keyboard([("🚀 открыть PR", f"pr:{task.key}"), ("🗑 отказаться", f"drop:{task.key}")]))
+        task.message_ids.append(msg_id)
+        doc_id = self.bot.send_document(f"{task.repo.replace('/', '__')}-{task.number}.patch", patch.encode("utf-8"),
+                                        caption=f"diff для {issue_link(task)}")
+        task.message_ids.append(doc_id)
+        self.store.put(task)
+
+    def on_work(self, key: str) -> None:
+        task = self.store.get(key)
+        if not task or task.stage != WORKING:
+            self.bot.send("эта задача уже не в работе")
+            return
+        issue = self.gh.issue(key)
+        if issue is None or issue["state"] != "OPEN":
+            self._drop(task, f"🔒 {issue_link(task)} закрыт или удалён, снимаю задачу")
+            return
+        # Если раньше уже был удачный результат — дорабатываем его, а не начинаем заново.
+        self.start_work(task, issue, rework=bool(task.summary))
+
+    def on_pr(self, key: str) -> None:
+        task = self.store.get(key)
+        if not task or task.stage != REVIEW:
+            self.bot.send("эта задача не ждёт PR")
+            return
+        issue = self.gh.issue(key)
+        if issue is None or issue["state"] != "OPEN":
+            self._drop(task, f"🔒 {issue_link(task)} закрыт или удалён, PR не открываю")
+            return
+        path = Path(task.workdir)
+        try:
+            fork = self.gh.fork(task.repo)
+            workspace.push(path, fork, task.branch)
+            stat, _ = workspace.diff(path, task.base_sha)
+            try:
+                meta = self.gemini.json(prompts.pr_system(prompts.load_style(self.cfg.style_file)),
+                                        prompts.pr_prompt(issue, task.summary, stat))
+            except GeminiError as exc:
+                log.warning("Описание PR не сгенерировано: %s", exc)
+                meta = {}
+            title = str(meta.get("title") or task.commit_message)
+            body = str(meta.get("body") or task.summary).strip() + f"\n\ncloses #{task.number}"
+            if prompts.is_algora(issue):
+                body += f"\n/claim #{task.number}"
+            url = self.gh.create_pr(task.repo, f"{fork.split('/')[0]}:{task.branch}", issue["default_branch"], title, body)
+        except (GhError, workspace.GitError) as exc:
+            msg_id = self.bot.send(f"⚠️ PR не открылся: <code>{esc(str(exc)[:500])}</code>",
+                                   keyboard([("🔁 ещё раз", f"pr:{task.key}"), ("🗑 отказаться", f"drop:{task.key}")]))
+            task.message_ids.append(msg_id)
+            self.store.put(task)
+            return
+        task.pr_url = url
+        task.stage = PR_OPENED
+        self.store.put(task)
+        self.bot.send(f'🚀 <a href="{esc(url)}">PR открыт</a> для {issue_link(task)}')
 
     def on_status(self) -> None:
         active = [t for t in self.store.tasks.values() if t.stage in ACTIVE_STAGES]
