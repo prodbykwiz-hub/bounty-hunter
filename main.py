@@ -652,18 +652,20 @@ class TelegramClient:
         self.session = requests.Session()
         self._last_sent_at = 0.0
 
-    def send(self, text: str) -> bool:
+    def send(self, text: str, reply_markup: dict[str, Any] | None = None) -> bool:
         elapsed = time.monotonic() - self._last_sent_at
         if elapsed < TELEGRAM_MIN_INTERVAL:
             time.sleep(TELEGRAM_MIN_INTERVAL - elapsed)
 
         url = f"{TELEGRAM_API}/bot{self.token}/sendMessage"
-        payload = {
+        payload: dict[str, Any] = {
             "chat_id": self.chat_id,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         try:
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
@@ -716,6 +718,18 @@ def format_message(cand: Candidate, cfg: Config, now: datetime | None = None) ->
     if cand.competitors > cfg.competition_threshold:
         lines.append(f"⚠️ <b>Высокая конкуренция</b>: {cand.competitors} претендентов")
     return "\n".join(lines)[:TELEGRAM_MAX_TEXT]
+
+
+def card_keyboard(cand: Candidate) -> dict[str, Any] | None:
+    """Кнопки карточки; нажатия обрабатывает локальный агент (python -m agent)."""
+    take, skip = f"take:{cand.key}", f"skip:{cand.key}"
+    # Telegram ограничивает callback_data 64 байтами.
+    if len(take.encode()) > 64:
+        return None
+    return {"inline_keyboard": [[
+        {"text": "✍️ взять", "callback_data": take},
+        {"text": "пропустить", "callback_data": skip},
+    ]]}
 
 
 # ----------------------------------------------------------------- pipeline
@@ -834,7 +848,7 @@ def notify(cfg: Config, seen: SeenStore, candidates: list[Candidate]) -> int:
         if telegram is None:
             log.info("DRY_RUN, сообщение не отправлено:\n%s", text)
             continue
-        if telegram.send(text):
+        if telegram.send(text, card_keyboard(cand)):
             seen.add(cand.key, "sent", cand.url)
             sent += 1
             log.info("Отправлено: %s", cand.url)
