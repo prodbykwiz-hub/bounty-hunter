@@ -262,7 +262,7 @@ class Config:
         if missing:
             raise ConfigError(f"Не заданы переменные окружения: {', '.join(missing)}")
 
-        languages = tuple(lang.strip() for lang in _env_str("LANGUAGES", "C++,Python").split(",") if lang.strip())
+        languages = tuple(lang.strip() for lang in _env_str("LANGUAGES", "C++,Python,Rust,Go").split(",") if lang.strip())
         if not languages:
             raise ConfigError("LANGUAGES не может быть пустым")
 
