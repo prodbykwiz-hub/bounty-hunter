@@ -109,7 +109,10 @@ class ClaudeCoder:
         if not isinstance(data, dict):
             raise CoderError("claude вернул неожиданный ответ")
         if data.get("is_error") or data.get("subtype") not in (None, "success"):
-            raise CoderError(f"claude: {data.get('subtype') or 'ошибка'}: {str(data.get('result', ''))[:300]}")
+            # При ошибке входа subtype бывает "success", а суть лежит в result.
+            detail = str(data.get("result") or "").strip()[:300] or str(data.get("subtype") or "ошибка")
+            hint = " — выполни: claude auth login" if "logged in" in detail.lower() or "/login" in detail else ""
+            raise CoderError(f"claude: {detail}{hint}")
 
         out = data.get("structured_output")
         if not isinstance(out, dict):
