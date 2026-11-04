@@ -165,7 +165,9 @@ GITHUB_TOKEN=ghp_xxx DRY_RUN=1 python main.py
 
    Активным должен быть `prodbykwiz`. Пока это не так, агент не запустится: перед любой
    записью на GitHub он проверяет аккаунт.
-2. **`.env`.** Скопируй `.env.example` в `.env` и заполни. `TG_OWNER_ID` — твой числовой id:
+2. **`.env`.** Проще всего через мастер: `py -3 setup_env.py`. Он спросит токен бота и ключ
+   Gemini, проверит их и сам определит id чата и твой id по сообщению боту.
+   Можно и вручную: скопируй `.env.example` в `.env` и заполни. `TG_OWNER_ID` — твой числовой id:
    напиши боту, открой `https://api.telegram.org/bot<TG_BOT_TOKEN>/getUpdates` и возьми
    `"from":{"id":...}`. Ключ Gemini: <https://aistudio.google.com/apikey>.
 3. **Стиль.** Поправь `agent/style.md`: правила и 2–3 примера твоих настоящих сообщений.
