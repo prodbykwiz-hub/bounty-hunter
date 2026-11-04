@@ -6,3 +6,5 @@ venv/
 *.log
 .idea/
 .vscode/
+agent_state.json
+agent_state.json.*
