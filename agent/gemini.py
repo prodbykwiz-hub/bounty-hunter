@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any
@@ -27,7 +28,7 @@ class Gemini:
         self.session.headers.update({"x-goog-api-key": api_key, "Content-Type": "application/json"})
 
     def generate(self, system: str, contents: list[dict[str, Any]],
-                 tools: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                 tools: list[dict[str, Any]] | None = None, json_mode: bool = False) -> dict[str, Any]:
         """Возвращает content ответа модели ({"role": "model", "parts": [...]}).
 
         Content надо класть в историю как есть: у Gemini 3 в parts лежат thought
@@ -39,6 +40,8 @@ class Gemini:
         }
         if tools:
             body["tools"] = [{"functionDeclarations": tools}]
+        if json_mode:
+            body["generationConfig"] = {"responseMimeType": "application/json"}
 
         url = f"{API}/{self.model}:generateContent"
         for attempt in range(1, MAX_RETRIES + 1):
@@ -74,6 +77,17 @@ class Gemini:
     def text(self, system: str, prompt: str) -> str:
         content = self.generate(system, [{"role": "user", "parts": [{"text": prompt}]}])
         return response_text(content)
+
+    def json(self, system: str, prompt: str) -> dict[str, Any]:
+        content = self.generate(system, [{"role": "user", "parts": [{"text": prompt}]}], json_mode=True)
+        raw = response_text(content).strip().removeprefix("```json").strip("`").strip()
+        try:
+            data = json.loads(raw)
+        except ValueError as exc:
+            raise GeminiError(f"ответ не JSON: {raw[:200]}") from exc
+        if not isinstance(data, dict):
+            raise GeminiError(f"ожидался JSON-объект: {raw[:200]}")
+        return data
 
 
 def response_text(content: dict[str, Any]) -> str:

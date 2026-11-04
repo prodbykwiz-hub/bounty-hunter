@@ -6,6 +6,7 @@ import html
 import logging
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from agent import prompts
@@ -13,12 +14,15 @@ from agent.config import AgentConfig, ConfigError
 from agent.gemini import Gemini, GeminiError
 from agent.github import AccountMismatch, GhError, GitHub
 from agent.state import (
-    ACTIVE_STAGES, AWAITING_POST, DRAFTING, DROPPED, POSTED, Task, TaskStore, utc_now,
+    ACTIVE_STAGES, AWAITING_POST, DRAFTING, DROPPED, POSTED, WORKING, Task, TaskStore, utc_now,
 )
 from agent.telegram import Bot, TelegramError, keyboard
 
 log = logging.getLogger("bounty_agent")
 esc = html.escape
+
+MAINTAINER_ROLES = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
+WATCH_GIVE_UP_DAYS = 14
 
 CALLBACK_ACK = {
     "take": "пишу черновик…",
@@ -65,7 +69,15 @@ class App:
     def run_forever(self) -> None:
         self.gh.ensure_account()
         log.info("Агент запущен: gh=%s, модель=%s", self.cfg.github_user, self.cfg.gemini_model)
+        next_watch = 0.0
         while True:
+            if time.monotonic() >= next_watch:
+                next_watch = time.monotonic() + self.cfg.watch_interval
+                try:
+                    self.watch()
+                except Exception as exc:  # noqa: BLE001
+                    log.exception("Ошибка наблюдателя")
+                    self.notify_error(exc)
             try:
                 updates = self.bot.get_updates(self.store.offset)
             except TelegramError as exc:
@@ -148,8 +160,13 @@ class App:
 
     def write_draft(self, task: Task, issue: dict[str, Any]) -> None:
         style = prompts.load_style(self.cfg.style_file)
+        if task.draft_mode == "reply":
+            system = prompts.reply_system(style)
+            prompt = prompts.reply_prompt(issue, task.reply_to_comment, task.instructions)
+        else:
+            system, prompt = prompts.comment_system(style), prompts.comment_prompt(issue, task.instructions)
         try:
-            draft = self.gemini.text(prompts.comment_system(style), prompts.comment_prompt(issue, task.instructions))
+            draft = self.gemini.text(system, prompt)
         except GeminiError as exc:
             task.stage = DRAFTING
             msg_id = self.bot.send(
@@ -202,6 +219,7 @@ class App:
         task.comment_id, task.comment_url = comment["id"], comment["url"]
         task.posted_at = utc_now()
         task.stage = POSTED
+        task.draft_mode, task.reply_to_comment, task.instructions = "offer", "", []
         self.store.put(task)
         self.bot.send(f'✅ <a href="{esc(comment["url"])}">ответ опубликован</a> в {issue_link(task)}. '
                       f"слежу за ответом мейнтейнера")
@@ -231,6 +249,80 @@ class App:
             self.on_redo(task.key)
         else:
             self.bot.send(f"{issue_link(task)} сейчас в статусе {task.stage}, правка не применима")
+
+    # --------------------------------------------------------- watcher
+
+    def watch(self) -> None:
+        for task in self.store.by_stage(POSTED):
+            try:
+                self.check_task(task)
+            except (GhError, TelegramError) as exc:
+                log.warning("Проверка %s#%d не удалась: %s", task.repo, task.number, exc)
+
+    def _drop(self, task: Task, text: str) -> None:
+        task.stage = DROPPED
+        self.store.put(task)
+        self.bot.send(text)
+
+    def check_task(self, task: Task) -> None:
+        issue = self.gh.issue(task.key)
+        if issue is None or issue["state"] != "OPEN":
+            self._drop(task, f"🔒 {issue_link(task)} закрыт, снимаю задачу")
+            return
+        me = self.cfg.github_user.lower()
+        assignees = [a.lower() for a in issue["assignees"]]
+        if me in assignees:
+            self.on_consent(task, issue, "тебя назначили исполнителем")
+            return
+        if assignees:
+            self._drop(task, f"❌ {issue_link(task)} назначили на {esc(', '.join(issue['assignees']))}, снимаю задачу")
+            return
+
+        author = issue["author"].lower()
+        fresh = [
+            c for c in issue["comments"]
+            if c["id"] not in task.reported_comment_ids
+            and c["created_at"] > task.posted_at
+            and not c["is_bot"]
+            and c["login"].lower() != me
+            and (c["association"] in MAINTAINER_ROLES or c["login"].lower() == author)
+        ]
+        for comment in fresh:
+            task.reported_comment_ids.append(comment["id"])
+            self.store.put(task)
+            try:
+                result = self.gemini.json(
+                    prompts.CONSENT_SYSTEM,
+                    prompts.consent_prompt(self.cfg.github_user, task.draft, comment["login"], comment["body"]),
+                )
+                verdict, summary = result.get("verdict", "other"), str(result.get("summary", ""))
+            except GeminiError as exc:
+                log.warning("Не удалось классифицировать ответ: %s", exc)
+                verdict, summary = "other", "не смог разобрать ответ"
+            quote = f"<blockquote>{esc(comment['body'][:1500])}</blockquote>"
+            who = f"<b>{esc(comment['login'])}</b> в {issue_link(task)}"
+
+            if verdict == "approve":
+                self.on_consent(task, issue, f"{comment['login']}: {summary}")
+                return
+            if verdict == "reject":
+                self._drop(task, f"❌ {who} отказал: {esc(summary)}\n{quote}")
+                return
+            if verdict == "question":
+                self.bot.send(f"❓ {who} спрашивает: {esc(summary)}\n{quote}")
+                task.draft_mode, task.reply_to_comment, task.instructions = "reply", comment["body"], []
+                self.write_draft(task, issue)
+                return
+            self.bot.send(f"💬 {who}: {esc(summary)}\n{quote}")
+
+        posted = datetime.fromisoformat(task.posted_at.replace("Z", "+00:00"))
+        if datetime.now(timezone.utc) - posted > timedelta(days=WATCH_GIVE_UP_DAYS):
+            self._drop(task, f"⌛ по {issue_link(task)} нет ответа {WATCH_GIVE_UP_DAYS} дней, снимаю задачу")
+
+    def on_consent(self, task: Task, issue: dict[str, Any], reason: str) -> None:
+        task.stage = WORKING
+        self.store.put(task)
+        self.bot.send(f"🟢 согласие по {issue_link(task)}: {esc(reason)}")
 
     def on_status(self) -> None:
         active = [t for t in self.store.tasks.values() if t.stage in ACTIVE_STAGES]

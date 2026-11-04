@@ -36,6 +36,9 @@ class Task:
     url: str
     stage: str = DRAFTING
     draft: str = ""
+    # "offer" — первое предложение взять задачу, "reply" — ответ на вопрос мейнтейнера.
+    draft_mode: str = "offer"
+    reply_to_comment: str = ""
     ai_policy: str = ""
     # Сообщения в Telegram, на которые можно ответить текстом-правкой.
     message_ids: list[int] = field(default_factory=list)
