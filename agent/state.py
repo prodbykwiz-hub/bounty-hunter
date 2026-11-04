@@ -60,10 +60,13 @@ class TaskStore:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.tasks: dict[str, Task] = {}
+        # Offset Telegram getUpdates: без него после перезапуска старые нажатия придут снова.
+        self.offset: int | None = None
         if path.exists():
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 self.tasks = {key: Task.from_dict(value) for key, value in raw.get("tasks", {}).items()}
+                self.offset = raw.get("offset")
             except (OSError, ValueError, TypeError) as exc:
                 backup = path.with_suffix(path.suffix + ".corrupt")
                 log.error("Состояние агента повреждено (%s), копия в %s", exc, backup)
@@ -88,7 +91,11 @@ class TaskStore:
         return None
 
     def save(self) -> None:
-        payload = {"version": 1, "tasks": {key: asdict(task) for key, task in sorted(self.tasks.items())}}
+        payload = {
+            "version": 1,
+            "offset": self.offset,
+            "tasks": {key: asdict(task) for key, task in sorted(self.tasks.items())},
+        }
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
         tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         tmp.replace(self.path)
