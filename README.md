@@ -188,10 +188,10 @@ GITHUB_TOKEN=ghp_xxx DRY_RUN=1 python main.py
    py -3 -m agent
    ```
 
-5. **Автозапуск при входе в Windows** (лог в `agent.log`):
+5. **Автозапуск при входе в Windows** (лог в `agent.log`). Подставь свой путь к папке проекта:
 
    ```bash
-   schtasks /Create /SC ONLOGON /TN BountyAgent /TR "\"C:\Users\kwiz!\Desktop\bounty-hunter\run_agent.cmd\""
+   schtasks /Create /SC ONLOGON /TN BountyAgent /TR "\"C:\path\to\bounty-hunter\run_agent.cmd\""
    ```
 
 Пока агент выключен, нажатия кнопок копятся в Telegram (до 24 часов) и обработаются после
