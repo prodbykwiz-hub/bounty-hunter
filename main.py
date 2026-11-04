@@ -35,25 +35,29 @@ REQUEST_TIMEOUT = 20
 MAX_RETRIES = 4
 # Если GitHub просит ждать дольше — не висим, а доделываем прогон с тем, что есть.
 MAX_RATE_LIMIT_SLEEP = 90
-# Search API: 30 запросов/мин для авторизованных → не чаще раза в 2.1 с.
-SEARCH_MIN_INTERVAL = 2.1
+# Основной лимит Search API — 30 запросов/мин, но secondary rate limit срабатывает
+# гораздо раньше на сериях однотипных поисков, поэтому держим паузу побольше.
+SEARCH_MIN_INTERVAL = 6.0
 SEARCH_PER_PAGE = 100
-SEARCH_MAX_PAGES = 3
+SEARCH_MAX_PAGES = 2
+MAX_PER_REPO_PER_RUN = 3
 GRAPHQL_REPO_CHUNK = 50
 GRAPHQL_COMMENTS_CHUNK = 20
 TELEGRAM_MIN_INTERVAL = 1.1
 TELEGRAM_MAX_TEXT = 4096
 STATE_VERSION = 1
 
+# Язык в запрос не добавляем (каждый язык удваивал бы число поисков) —
+# фильтруем по primaryLanguage репозитория из GraphQL.
 # GitHub Search игнорирует символ "$", поэтому сумму в заголовке ищем
 # через "bounty in:title", а саму сумму достаём регуляркой.
 SEARCH_TERMS: tuple[str, ...] = (
-    "label:bounty",
-    'label:"💎 Bounty"',
-    "algora",
-    "opire",
+    'label:bounty,"💎 Bounty"',
+    "algora OR opire",
     "bounty in:title",
 )
+BOUNTY_PLATFORMS_RE = re.compile(r"\b(?:algora|opire)\b", re.IGNORECASE)
+TITLE_BOUNTY_RE = re.compile(r"\$\s?\d.*\bbounty\b|\bbounty\b.*\$\s?\d", re.IGNORECASE)
 
 # ---------------------------------------------------------------- anti-spam
 
@@ -379,15 +383,16 @@ class Candidate:
     labels: list[str]
     comments_count: int
     created_at: datetime
-    search_language: str
+    author_is_bot: bool = False
     repo_info: RepoInfo | None = None
     competitors: int = 0
     reward: float | None = None
     bot_comments: list[str] = field(default_factory=list)
 
     @classmethod
-    def from_search_item(cls, item: dict[str, Any], language: str) -> Candidate:
+    def from_search_item(cls, item: dict[str, Any]) -> Candidate:
         repo_parts = item["repository_url"].rstrip("/").split("/")
+        user = item.get("user") or {}
         return cls(
             key=item["node_id"],
             number=item["number"],
@@ -395,11 +400,11 @@ class Candidate:
             body=item.get("body") or "",
             url=item["html_url"],
             repo=f"{repo_parts[-2]}/{repo_parts[-1]}",
-            author=(item.get("user") or {}).get("login") or "",
+            author=user.get("login") or "",
             labels=[label.get("name", "") for label in item.get("labels") or []],
             comments_count=int(item.get("comments") or 0),
             created_at=parse_github_time(item["created_at"]),
-            search_language=language,
+            author_is_bot=user.get("type") == "Bot" or (user.get("login") or "").endswith("[bot]"),
         )
 
 
@@ -437,6 +442,9 @@ def is_suspicious_url(url: str) -> bool:
 
 def content_spam_reason(candidate: Candidate) -> str | None:
     """Проверки, не требующие запросов к API (стоп-слова, автор, фишинговые ссылки)."""
+    # Настоящие баунти заводят люди; issues от ботов — это новостные ленты и авто-intake.
+    if candidate.author_is_bot:
+        return f"issue создан ботом {candidate.author}"
     for source_name, text in (("заголовке", candidate.title), ("теле", candidate.body)):
         match = STOP_WORDS_RE.search(text)
         if match:
@@ -462,10 +470,22 @@ def repo_spam_reason(candidate: Candidate, info: RepoInfo | None, cfg: Config) -
         return f"мало звёзд ({info.stars} < {cfg.min_stars})"
     if info.forks < cfg.min_forks:
         return f"мало форков ({info.forks} < {cfg.min_forks})"
+    wanted = {lang.lower() for lang in cfg.languages}
+    if (info.language or "").lower() not in wanted:
+        return f"язык репозитория {info.language or 'не определён'}"
     cjk_text = f"{info.full_name} {info.description} {candidate.title}"
     if CJK_RE.search(cjk_text) and info.stars < CJK_MIN_STARS:
         return f"иероглифы в репозитории с {info.stars} звёздами"
     return None
+
+
+def has_bounty_signal(candidate: Candidate) -> bool:
+    """Сумма засчитывается, только если рядом есть признак настоящего баунти."""
+    if any("bounty" in label.lower() for label in candidate.labels):
+        return True
+    if candidate.bot_comments and any(BOUNTY_PLATFORMS_RE.search(body) for body in candidate.bot_comments):
+        return True
+    return bool(BOUNTY_PLATFORMS_RE.search(candidate.body) or TITLE_BOUNTY_RE.search(candidate.title))
 
 
 # ------------------------------------------------------------------- GitHub
@@ -706,7 +726,7 @@ def format_message(cand: Candidate, cfg: Config, now: datetime | None = None) ->
     esc = html.escape
     title = cand.title if len(cand.title) <= 200 else cand.title[:197] + "…"
     stars = f"{info.stars:,}" if info else "?"
-    language = (info.language if info else None) or cand.search_language
+    language = (info.language if info else None) or "?"
 
     lines = [
         f'🎯 <b><a href="{esc(cand.url)}">{esc(title)}</a></b>',
@@ -735,14 +755,10 @@ def card_keyboard(cand: Candidate) -> dict[str, Any] | None:
 # ----------------------------------------------------------------- pipeline
 
 
-def build_queries(cfg: Config) -> list[tuple[str, str]]:
+def build_queries(cfg: Config) -> list[str]:
     since = (datetime.now(timezone.utc) - timedelta(hours=cfg.max_age_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
     base = f"is:issue is:open no:assignee created:>={since}"
-    queries = []
-    for lang in cfg.languages:
-        lang_q = f'language:"{lang}"' if " " in lang else f"language:{lang}"
-        queries += [(lang, f"{base} {lang_q} {term}") for term in SEARCH_TERMS]
-    return queries
+    return [f"{base} {term}" for term in SEARCH_TERMS]
 
 
 def collect_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore) -> tuple[dict[str, Candidate], int, int]:
@@ -750,7 +766,7 @@ def collect_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore) -> tuple[
     candidates: dict[str, Candidate] = {}
     queries = build_queries(cfg)
     failed = 0
-    for done, (lang, query) in enumerate(queries):
+    for done, query in enumerate(queries):
         try:
             items = gh.search_issues(query)
         except RateLimitError as exc:
@@ -771,7 +787,7 @@ def collect_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore) -> tuple[
             if not key or key in seen or key in candidates:
                 continue
             try:
-                candidates[key] = Candidate.from_search_item(item, lang)
+                candidates[key] = Candidate.from_search_item(item)
             except (KeyError, TypeError, ValueError) as exc:
                 log.warning("Не удалось разобрать issue %s: %s", item.get("html_url"), exc)
                 continue
@@ -825,6 +841,13 @@ def filter_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore,
 
         cand.reward = extract_reward(" ".join(cand.labels), cand.title, strip_code(cand.body),
                                      *(strip_code(body) for body in cand.bot_comments))
+        # Не запоминаем: сумму или бота Algora могут добавить позже.
+        if cand.reward is None:
+            log.info("ПРОПУСК %s — сумма награды не найдена", cand.url)
+            continue
+        if not has_bounty_signal(cand):
+            log.info("ПРОПУСК %s — сумма есть, но нет признаков баунти", cand.url)
+            continue
 
         if cand.competitors > cfg.competition_threshold and cfg.skip_high_competition:
             log.info("ПРОПУСК %s — высокая конкуренция (%d)", cand.url, cand.competitors)
@@ -834,7 +857,22 @@ def filter_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore,
     return result
 
 
+def cap_per_repo(candidates: list[Candidate], limit: int) -> list[Candidate]:
+    """Самые свежие `limit` задач с каждого репозитория — один репо не должен заваливать чат."""
+    kept: list[Candidate] = []
+    per_repo: dict[str, int] = {}
+    for cand in sorted(candidates, key=lambda c: c.created_at, reverse=True):
+        repo = cand.repo.lower()
+        if per_repo.get(repo, 0) < limit:
+            per_repo[repo] = per_repo.get(repo, 0) + 1
+            kept.append(cand)
+        else:
+            log.info("ПРОПУСК %s — уже %d задач с %s за этот запуск", cand.url, limit, cand.repo)
+    return kept
+
+
 def notify(cfg: Config, seen: SeenStore, candidates: list[Candidate]) -> int:
+    candidates = cap_per_repo(candidates, MAX_PER_REPO_PER_RUN)
     candidates.sort(key=lambda c: c.created_at)
     if len(candidates) > cfg.max_messages_per_run:
         log.info("К отправке %d задач, лимит за запуск %d — остальные уйдут в следующий раз",
