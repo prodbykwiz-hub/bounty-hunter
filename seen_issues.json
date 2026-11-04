@@ -1,4 +1,405 @@
 {
   "version": 1,
-  "issues": {}
+  "issues": {
+    "I_kwDOHqjyxs8AAAABb4x5xQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/SecOpsNews/news/issues/75963"
+    },
+    "I_kwDOQ3rhTc8AAAABb-p22g": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/panoskokmotos/panoskokmotos/issues/19"
+    },
+    "I_kwDOQ_2_iM8AAAABcNldDg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/minerval-ai/minerval/issues/698"
+    },
+    "I_kwDORcpqis8AAAABbxd3eg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/kostasuser01gr/VoiceAI-Support-Dashboard/issues/89"
+    },
+    "I_kwDOS3gB3c8AAAABcFWGMg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/auscaster/frantic-board/issues/574"
+    },
+    "I_kwDOSP_2Ts8AAAABbkaN3Q": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Ikalus1988/MisakaNet/issues/4276"
+    },
+    "I_kwDOSP_2Ts8AAAABbm0CjQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Ikalus1988/MisakaNet/issues/4297"
+    },
+    "I_kwDOSScoo88AAAABb-9t1A": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1353"
+    },
+    "I_kwDOSScoo88AAAABb4Ew2w": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1352"
+    },
+    "I_kwDOSScoo88AAAABbniFnQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1348"
+    },
+    "I_kwDOSScoo88AAAABbqLWkQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1349"
+    },
+    "I_kwDOSScoo88AAAABbsWbLA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1350"
+    },
+    "I_kwDOSScoo88AAAABbvzq8Q": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1351"
+    },
+    "I_kwDOSScoo88AAAABcDYZVg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/relayhop/sn-monetization-runtime/issues/1354"
+    },
+    "I_kwDOSVlucc8AAAABcBm0Xg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/MrPeppersDev/agent-infrastructure-landscape/issues/415"
+    },
+    "I_kwDOSmCMss8AAAABb6VCFg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1717"
+    },
+    "I_kwDOSmCMss8AAAABb_53OQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1718"
+    },
+    "I_kwDOSmCMss8AAAABbkfLQA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1712"
+    },
+    "I_kwDOSmCMss8AAAABbogN9Q": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1713"
+    },
+    "I_kwDOSmCMss8AAAABbrAIVA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1714"
+    },
+    "I_kwDOSmCMss8AAAABbs53IA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1715"
+    },
+    "I_kwDOSmCMss8AAAABbw43JA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1716"
+    },
+    "I_kwDOSmCMss8AAAABcEJIcg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1719"
+    },
+    "I_kwDOSmCMss8AAAABcLqs8A": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1720"
+    },
+    "I_kwDOSmCMss8AAAABcQzCdQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1721"
+    },
+    "I_kwDOSmCMss8AAAABcTxQKw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1722"
+    },
+    "I_kwDOTOXMzs8AAAABb6K8jw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1371"
+    },
+    "I_kwDOTOXMzs8AAAABb_rT7w": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1372"
+    },
+    "I_kwDOTOXMzs8AAAABbkVsxw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1366"
+    },
+    "I_kwDOTOXMzs8AAAABbn9sMg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1367"
+    },
+    "I_kwDOTOXMzs8AAAABbqhR-g": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1368"
+    },
+    "I_kwDOTOXMzs8AAAABbstgNA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1369"
+    },
+    "I_kwDOTOXMzs8AAAABbwuJ4A": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1370"
+    },
+    "I_kwDOTOXMzs8AAAABcEC0Yw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1373"
+    },
+    "I_kwDOTOXMzs8AAAABcLg71w": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1374"
+    },
+    "I_kwDOTOXMzs8AAAABcQpdMA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1375"
+    },
+    "I_kwDOTOXMzs8AAAABcTtCMA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1376"
+    },
+    "I_kwDOTR3Rz88AAAABb7qHZA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4201"
+    },
+    "I_kwDOTR3Rz88AAAABbnNMKQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4198"
+    },
+    "I_kwDOTR3Rz88AAAABbtnc9A": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4199"
+    },
+    "I_kwDOUf2rqc8AAAABb4VW7g": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/206"
+    },
+    "I_kwDOUf2rqc8AAAABb4VYyg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/207"
+    },
+    "I_kwDOUf2rqc8AAAABbmqNlg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/203"
+    },
+    "I_kwDOUf2rqc8AAAABbro_RA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/204"
+    },
+    "I_kwDOUf2rqc8AAAABbv9z6g": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/205"
+    },
+    "I_kwDOUf2rqc8AAAABcADPdg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/208"
+    },
+    "I_kwDOUf2rqc8AAAABcJ2Kdg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/209"
+    },
+    "I_kwDOUf2rqc8AAAABcJ2Lzw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/210"
+    },
+    "I_kwDOUf2rqc8AAAABcSIfPg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/212"
+    },
+    "I_kwDOUf2rqc8AAAABcWd06Q": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/213"
+    },
+    "I_kwDOUf2rqc8AAAABcWd19g": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/abdulsalam-create/bounty-watch/issues/214"
+    },
+    "I_kwDOUg1iIc8AAAABbqfyTw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/quadseven/wow-overseer/issues/1746"
+    },
+    "I_kwDOUt6H_M8AAAABbwf9BQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/ariahendrawan-sudo/project-a/issues/22"
+    },
+    "I_kwDOVJCeVM8AAAABcEMbjA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/liuwenji007/LLM-liangyi/issues/102"
+    },
+    "I_kwDOVPDSPs8AAAABbmZUnA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/alfrexo95/bounty-bot/issues/74"
+    },
+    "I_kwDOVPDSPs8AAAABbqIMBg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/alfrexo95/bounty-bot/issues/75"
+    },
+    "I_kwDOVPDSPs8AAAABbs2b_g": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/alfrexo95/bounty-bot/issues/76"
+    },
+    "I_kwDOVPDSPs8AAAABbzpJDQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/alfrexo95/bounty-bot/issues/77"
+    },
+    "I_kwDOVRCwdM8AAAABb4SF-A": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/airdropia/earn-ops/issues/33"
+    },
+    "I_kwDOVRCwdM8AAAABbmmORQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/airdropia/earn-ops/issues/31"
+    },
+    "I_kwDOVRCwdM8AAAABcJzaog": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/airdropia/earn-ops/issues/37"
+    },
+    "I_kwDOVRWSa88AAAABblhIEw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/ryder777777/Go-Hybrid/issues/7"
+    },
+    "I_kwDOVRWSa88AAAABblnzjw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/ryder777777/Go-Hybrid/issues/8"
+    },
+    "I_kwDOVUYmlM8AAAABb8tmCQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/58"
+    },
+    "I_kwDOVUYmlM8AAAABbmXGEQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/53"
+    },
+    "I_kwDOVUYmlM8AAAABbpfdgg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/54"
+    },
+    "I_kwDOVUYmlM8AAAABbr53BQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/55"
+    },
+    "I_kwDOVUYmlM8AAAABbtyCiQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/56"
+    },
+    "I_kwDOVUYmlM8AAAABbzlYhA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/57"
+    },
+    "I_kwDOVUYmlM8AAAABcBOpwg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/59"
+    },
+    "I_kwDOVUYmlM8AAAABcGhTpw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/60"
+    },
+    "I_kwDOVUYmlM8AAAABcN5KFQ": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/61"
+    },
+    "I_kwDOVUYmlM8AAAABcSbMQA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/62"
+    },
+    "I_kwDOVUYmlM8AAAABcV9VRA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/63"
+    },
+    "I_kwDOVW8lUc8AAAABb2FuPg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/giblfiz/hexwar-agent-open/issues/1"
+    },
+    "I_kwDOVXxTzc8AAAABbxffHg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/aryan2621/antidote/issues/1416"
+    },
+    "I_kwDOVXxTzc8AAAABcOBXLA": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/aryan2621/antidote/issues/1620"
+    },
+    "I_kwDOVgBrks8AAAABb0Fn9Q": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/SoroWave/sorowave-contracts/issues/1"
+    },
+    "I_kwDOVgEixc8AAAABb1LOEw": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/THEC1-zc/qwe-poidh-november/issues/1"
+    },
+    "I_kwDOViETjs8AAAABcT7Ohg": {
+      "at": "2026-11-04T07:54:05Z",
+      "status": "spam",
+      "url": "https://github.com/devloot-xyz/LootTown/issues/19"
+    }
+  }
 }
