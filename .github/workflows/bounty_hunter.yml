@@ -42,6 +42,7 @@ jobs:
           LANGUAGES: ${{ vars.LANGUAGES }}
           MIN_STARS: ${{ vars.MIN_STARS }}
           MIN_FORKS: ${{ vars.MIN_FORKS }}
+          MIN_REWARD: ${{ vars.MIN_REWARD }}
           MAX_AGE_HOURS: ${{ vars.MAX_AGE_HOURS }}
           COMPETITION_THRESHOLD: ${{ vars.COMPETITION_THRESHOLD }}
           SKIP_HIGH_COMPETITION: ${{ vars.SKIP_HIGH_COMPETITION }}

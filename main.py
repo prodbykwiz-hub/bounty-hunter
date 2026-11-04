@@ -238,6 +238,7 @@ class Config:
     languages: tuple[str, ...]
     min_stars: int
     min_forks: int
+    min_reward: int
     max_age_hours: int
     competition_threshold: int
     skip_high_competition: bool
@@ -277,6 +278,7 @@ class Config:
             languages=languages,
             min_stars=_env_int("MIN_STARS", 30),
             min_forks=_env_int("MIN_FORKS", 5),
+            min_reward=_env_int("MIN_REWARD", 25),
             max_age_hours=max_age_hours,
             competition_threshold=_env_int("COMPETITION_THRESHOLD", 3),
             skip_high_competition=_env_bool("SKIP_HIGH_COMPETITION"),
@@ -844,6 +846,10 @@ def filter_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore,
         # Не запоминаем: сумму или бота Algora могут добавить позже.
         if cand.reward is None:
             log.info("ПРОПУСК %s — сумма награды не найдена", cand.url)
+            continue
+        # "$1"/"$5" в тексте — это цены и примеры, а не награда.
+        if cand.reward < cfg.min_reward:
+            log.info("ПРОПУСК %s — награда %s меньше $%d", cand.url, format_reward(cand.reward), cfg.min_reward)
             continue
         if not has_bounty_signal(cand):
             log.info("ПРОПУСК %s — сумма есть, но нет признаков баунти", cand.url)
