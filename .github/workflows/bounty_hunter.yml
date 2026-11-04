@@ -1,0 +1,71 @@
+name: Bounty Hunter
+
+on:
+  schedule:
+    # GitHub может задерживать cron на несколько минут при высокой нагрузке.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Запуски не должны пересекаться, иначе оба отправят одни и те же задачи.
+concurrency:
+  group: bounty-hunter
+  cancel-in-progress: false
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bounty hunter
+        env:
+          # Секреты с префиксом GITHUB_ создать нельзя: по умолчанию используется
+          # встроенный токен, свой PAT можно положить в секрет GH_PAT.
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          # Необязательные настройки (Settings → Secrets and variables → Variables).
+          LANGUAGES: ${{ vars.LANGUAGES }}
+          MIN_STARS: ${{ vars.MIN_STARS }}
+          MIN_FORKS: ${{ vars.MIN_FORKS }}
+          MAX_AGE_HOURS: ${{ vars.MAX_AGE_HOURS }}
+          COMPETITION_THRESHOLD: ${{ vars.COMPETITION_THRESHOLD }}
+          SKIP_HIGH_COMPETITION: ${{ vars.SKIP_HIGH_COMPETITION }}
+          MAX_MESSAGES_PER_RUN: ${{ vars.MAX_MESSAGES_PER_RUN }}
+        run: python main.py
+
+      # Состояние сохраняем даже при ошибке бота: уже отправленные задачи
+      # должны попасть в seen_issues.json, иначе в следующий раз придут дубли.
+      - name: Commit seen_issues.json
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seen_issues.json
+          if git diff --cached --quiet; then
+            echo "seen_issues.json не изменился"
+            exit 0
+          fi
+          git commit -m "chore: update seen issues [skip ci]"
+          for attempt in 1 2 3; do
+            if git pull --rebase --quiet && git push --quiet; then
+              exit 0
+            fi
+            echo "Push не удался (попытка $attempt), повторяю"
+            sleep 5
+          done
+          exit 1
