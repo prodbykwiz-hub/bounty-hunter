@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from typing import Any
 
@@ -15,6 +16,7 @@ API = "https://generativelanguage.googleapis.com/v1beta/models"
 # Pro-модели с размышлением отвечают долго.
 REQUEST_TIMEOUT = 300
 MAX_RETRIES = 5
+ZERO_QUOTA_RE = re.compile(r"limit:\s*0\b")
 
 
 class GeminiError(Exception):
@@ -53,6 +55,12 @@ class Gemini:
                 log.warning("Gemini: %s, повтор через %d с", type(exc).__name__, wait)
                 time.sleep(wait)
                 continue
+            if resp.status_code == 429 and is_zero_quota(resp.text):
+                # Повтор не поможет: модель не входит в тариф (например, Pro на бесплатном).
+                raise GeminiError(
+                    f"у ключа нет квоты на {self.model}: на бесплатном тарифе она 0. "
+                    "подключи оплату в aistudio.google.com или поставь GEMINI_MODEL=gemini-3.8-flash"
+                )
             if resp.status_code in (429, 500, 502, 503, 504):
                 wait = min(60, 10 * attempt)
                 log.warning("Gemini: HTTP %d, повтор через %d с", resp.status_code, wait)
@@ -88,6 +96,10 @@ class Gemini:
         if not isinstance(data, dict):
             raise GeminiError(f"ожидался JSON-объект: {raw[:200]}")
         return data
+
+
+def is_zero_quota(body: str) -> bool:
+    return bool(ZERO_QUOTA_RE.search(body))
 
 
 def response_text(content: dict[str, Any]) -> str:

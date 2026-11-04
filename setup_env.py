@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import getpass
+import re
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,7 @@ TEMPLATE = ROOT / ".env.example"
 TELEGRAM_API = "https://api.telegram.org"
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta/models"
 DEFAULT_MODEL = "gemini-3.1-pro-preview"
+ZERO_QUOTA_RE = re.compile(r"limit:\s*0\b")
 WAIT_FOR_MESSAGE = 180
 TIMEOUT = 30
 
@@ -123,6 +125,23 @@ def check_gemini(key: str, model: str) -> None:
         raise SetupError(f"модель {model} недоступна для этого ключа")
     if resp.status_code != 200:
         raise SetupError(f"Gemini: HTTP {resp.status_code}")
+
+    # Модель видна и на бесплатном тарифе, даже если квоты на неё нет — проверяем пробным запросом.
+    try:
+        resp = requests.post(
+            f"{GEMINI_API}/{model}:generateContent", headers={"x-goog-api-key": key},
+            json={"contents": [{"role": "user", "parts": [{"text": "reply with: ok"}]}]}, timeout=120,
+        )
+    except requests.RequestException as exc:
+        raise SetupError(f"Gemini недоступен: {type(exc).__name__}") from exc
+    if resp.status_code == 429 and ZERO_QUOTA_RE.search(resp.text):
+        raise SetupError(f"у ключа нет квоты на {model} (на бесплатном тарифе она 0): подключи оплату "
+                         f"в aistudio.google.com или впиши в .env GEMINI_MODEL=gemini-3.8-flash")
+    if resp.status_code == 503:
+        print(f"  ⚠ {model} сейчас перегружена (503), ключ принят — агент повторит запрос сам")
+        return
+    if resp.status_code != 200:
+        raise SetupError(f"Gemini generateContent: HTTP {resp.status_code}")
 
 
 def gh_user() -> str:
