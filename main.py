@@ -40,6 +40,10 @@ MAX_RATE_LIMIT_SLEEP = 90
 SEARCH_MIN_INTERVAL = 6.0
 SEARCH_PER_PAGE = 100
 SEARCH_MAX_PAGES = 2
+# Свежие issues ищем в каждом запуске, остальную часть окна MAX_AGE_HOURS — срезами по очереди.
+FRESH_WINDOW_HOURS = 24
+BACKFILL_SLICE_HOURS = 72
+CRON_PERIOD_SECONDS = 15 * 60
 MAX_PER_REPO_PER_RUN = 3
 GRAPHQL_REPO_CHUNK = 50
 GRAPHQL_COMMENTS_CHUNK = 20
@@ -266,7 +270,7 @@ class Config:
         if not languages:
             raise ConfigError("LANGUAGES не может быть пустым")
 
-        max_age_hours = _env_int("MAX_AGE_HOURS", 72, minimum=1)
+        max_age_hours = _env_int("MAX_AGE_HOURS", 720, minimum=1)
         # TTL записи обязан пережить окно поиска, иначе задача найдётся снова и придёт дубль.
         min_ttl_days = max_age_hours // 24 + 2
         state_ttl_days = max(_env_int("STATE_TTL_DAYS", 14, minimum=1), min_ttl_days)
@@ -757,10 +761,39 @@ def card_keyboard(cand: Candidate) -> dict[str, Any] | None:
 # ----------------------------------------------------------------- pipeline
 
 
-def build_queries(cfg: Config) -> list[str]:
-    since = (datetime.now(timezone.utc) - timedelta(hours=cfg.max_age_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    base = f"is:issue is:open no:assignee created:>={since}"
-    return [f"{base} {term}" for term in SEARCH_TERMS]
+def _github_time(value: datetime) -> str:
+    return value.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def search_windows(max_age_hours: int, now: datetime | None = None) -> list[str]:
+    """Фильтры created: для этого запуска: свежее окно всегда, плюс один старый срез по очереди.
+
+    Поиск отдаёт не больше SEARCH_MAX_PAGES * 100 самых новых результатов, а за месяц их
+    сотни на запрос. Поэтому месяц режем на срезы по BACKFILL_SLICE_HOURS и в каждый запуск
+    дочитываем один из них: за несколько запусков проходится всё окно.
+    """
+    now = (now or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    fresh = min(FRESH_WINDOW_HOURS, max_age_hours)
+    windows = [f"created:>={_github_time(now - timedelta(hours=fresh))}"]
+    backfill_hours = max_age_hours - fresh
+    if backfill_hours <= 0:
+        return windows
+    slices = -(-backfill_hours // BACKFILL_SLICE_HOURS)
+    # Номер среза зависит только от времени: состояние хранить не нужно, а cron
+    # каждые 15 минут перебирает срезы по кругу.
+    index = int(now.timestamp() // CRON_PERIOD_SECONDS) % slices
+    end = now - timedelta(hours=fresh + index * BACKFILL_SLICE_HOURS)
+    start = max(end - timedelta(hours=BACKFILL_SLICE_HOURS), now - timedelta(hours=max_age_hours))
+    windows.append(f"created:{_github_time(start)}..{_github_time(end)}")
+    return windows
+
+
+def build_queries(cfg: Config, now: datetime | None = None) -> list[str]:
+    return [
+        f"is:issue is:open no:assignee {window} {term}"
+        for window in search_windows(cfg.max_age_hours, now)
+        for term in SEARCH_TERMS
+    ]
 
 
 def collect_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore) -> tuple[dict[str, Candidate], int, int]:
