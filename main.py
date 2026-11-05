@@ -44,6 +44,7 @@ SEARCH_MAX_PAGES = 2
 FRESH_WINDOW_HOURS = 24
 BACKFILL_SLICE_HOURS = 72
 CRON_PERIOD_SECONDS = 15 * 60
+OPIRE_REWARDS_URL = "https://api.opire.dev/rewards"
 MAX_PER_REPO_PER_RUN = 3
 GRAPHQL_REPO_CHUNK = 50
 GRAPHQL_COMMENTS_CHUNK = 20
@@ -250,6 +251,7 @@ class Config:
     state_ttl_days: int
     state_file: Path
     dry_run: bool
+    platforms: tuple[str, ...] = ("opire",)
 
     @classmethod
     def from_env(cls) -> Config:
@@ -269,6 +271,14 @@ class Config:
         languages = tuple(lang.strip() for lang in _env_str("LANGUAGES", "C++,Python,Rust,Go").split(",") if lang.strip())
         if not languages:
             raise ConfigError("LANGUAGES не может быть пустым")
+
+        # PLATFORMS=none отключает внешние платформы, остаётся только поиск GitHub.
+        platforms = tuple(p.strip().lower() for p in _env_str("PLATFORMS", "opire").split(",") if p.strip())
+        platforms = () if platforms == ("none",) else platforms
+        unknown = [p for p in platforms if p not in PLATFORM_FETCHERS]
+        if unknown:
+            raise ConfigError(f"PLATFORMS: неизвестные платформы {', '.join(unknown)}; "
+                              f"доступны: {', '.join(PLATFORM_FETCHERS)}")
 
         max_age_hours = _env_int("MAX_AGE_HOURS", 720, minimum=1)
         # TTL записи обязан пережить окно поиска, иначе задача найдётся снова и придёт дубль.
@@ -290,6 +300,7 @@ class Config:
             state_ttl_days=state_ttl_days,
             state_file=Path(_env_str("STATE_FILE", "seen_issues.json")),
             dry_run=dry_run,
+            platforms=platforms,
         )
 
 
@@ -394,6 +405,9 @@ class Candidate:
     competitors: int = 0
     reward: float | None = None
     bot_comments: list[str] = field(default_factory=list)
+    # Сумма из API платформы (Opire): точнее регулярки и сама по себе признак баунти.
+    platform: str | None = None
+    platform_reward: float | None = None
 
     @classmethod
     def from_search_item(cls, item: dict[str, Any]) -> Candidate:
@@ -411,6 +425,24 @@ class Candidate:
             comments_count=int(item.get("comments") or 0),
             created_at=parse_github_time(item["created_at"]),
             author_is_bot=user.get("type") == "Bot" or (user.get("login") or "").endswith("[bot]"),
+        )
+
+    @classmethod
+    def from_graphql_issue(cls, repo: str, node: dict[str, Any]) -> Candidate:
+        author = node.get("author") or {}
+        login = author.get("login") or ""
+        return cls(
+            key=node["id"],
+            number=node["number"],
+            title=node.get("title") or "",
+            body=node.get("body") or "",
+            url=node["url"],
+            repo=repo,
+            author=login,
+            labels=[label["name"] for label in (node.get("labels") or {}).get("nodes") or [] if label],
+            comments_count=int((node.get("comments") or {}).get("totalCount") or 0),
+            created_at=parse_github_time(node["createdAt"]),
+            author_is_bot=author.get("__typename") == "Bot" or login.endswith("[bot]"),
         )
 
 
@@ -487,11 +519,62 @@ def repo_spam_reason(candidate: Candidate, info: RepoInfo | None, cfg: Config) -
 
 def has_bounty_signal(candidate: Candidate) -> bool:
     """Сумма засчитывается, только если рядом есть признак настоящего баунти."""
+    if candidate.platform_reward is not None:
+        return True
     if any("bounty" in label.lower() for label in candidate.labels):
         return True
     if candidate.bot_comments and any(BOUNTY_PLATFORMS_RE.search(body) for body in candidate.bot_comments):
         return True
     return bool(BOUNTY_PLATFORMS_RE.search(candidate.body) or TITLE_BOUNTY_RE.search(candidate.title))
+
+
+# ---------------------------------------------------------------- platforms
+
+
+GITHUB_ISSUE_URL_RE = re.compile(r"^https://github\.com/([\w.-]+)/([\w.-]+)/issues/(\d+)/?$")
+
+
+@dataclass(frozen=True)
+class IssueRef:
+    owner: str
+    name: str
+    number: int
+
+
+@dataclass(frozen=True)
+class PlatformBounty:
+    platform: str
+    ref: IssueRef
+    reward: float
+    created_at: datetime
+
+
+def parse_opire_rewards(payload: Any) -> list[PlatformBounty]:
+    """Активные награды Opire (GET https://api.opire.dev/rewards, без авторизации)."""
+    bounties: list[PlatformBounty] = []
+    for item in payload if isinstance(payload, list) else []:
+        try:
+            if item.get("platform") != "GitHub":
+                continue
+            match = GITHUB_ISSUE_URL_RE.match(item.get("url") or "")
+            price = item.get("pendingPrice") or {}
+            if not match or price.get("unit") != "USD_CENT":
+                continue
+            reward = int(price["value"]) / 100
+            created = datetime.fromtimestamp(int(item["createdAt"]) / 1000, tz=timezone.utc)
+        except (AttributeError, KeyError, TypeError, ValueError, OverflowError, OSError):
+            continue
+        if reward > 0:
+            owner, name, number = match.groups()
+            bounties.append(PlatformBounty("Opire", IssueRef(owner, name, int(number)), reward, created))
+    return bounties
+
+
+def fetch_opire(session: requests.Session) -> list[PlatformBounty]:
+    resp = session.get(OPIRE_REWARDS_URL, timeout=REQUEST_TIMEOUT,
+                       headers={"Accept": "application/json", "User-Agent": "bounty-hunter-bot"})
+    resp.raise_for_status()
+    return parse_opire_rewards(resp.json())
 
 
 # ------------------------------------------------------------------- GitHub
@@ -635,6 +718,29 @@ class GitHubClient:
                 )
         return result
 
+    def fetch_issues(self, refs: list[IssueRef]) -> dict[IssueRef, Candidate]:
+        """Открытые неназначенные issues по ссылкам с внешних платформ."""
+        result: dict[IssueRef, Candidate] = {}
+        for chunk in chunked(refs, GRAPHQL_COMMENTS_CHUNK):
+            var_defs, parts, variables = [], [], {}
+            for i, ref in enumerate(chunk):
+                var_defs += [f"$o{i}: String!", f"$n{i}: String!", f"$i{i}: Int!"]
+                variables[f"o{i}"], variables[f"n{i}"], variables[f"i{i}"] = ref.owner, ref.name, ref.number
+                parts.append(
+                    f"x{i}: repository(owner: $o{i}, name: $n{i}) {{ nameWithOwner issue(number: $i{i}) {{"
+                    " id number title body url createdAt state author { __typename login }"
+                    " labels(first: 20) { nodes { name } } assignees { totalCount } comments { totalCount } } }"
+                )
+            query = f"query({', '.join(var_defs)}) {{ {' '.join(parts)} rateLimit {{ cost remaining }} }}"
+            data = self.graphql(query, variables)
+            for i, ref in enumerate(chunk):
+                repo = data.get(f"x{i}") or {}
+                node = repo.get("issue")
+                if not node or node.get("state") != "OPEN" or (node.get("assignees") or {}).get("totalCount"):
+                    continue
+                result[ref] = Candidate.from_graphql_issue(repo["nameWithOwner"], node)
+        return result
+
     def fetch_comments(self, candidates: list[Candidate]) -> dict[str, dict[str, Any]]:
         """{candidate.key: {"total": int, "comments": [(login, is_bot, body), ...]}}"""
         result: dict[str, dict[str, Any]] = {}
@@ -737,7 +843,8 @@ def format_message(cand: Candidate, cfg: Config, now: datetime | None = None) ->
     lines = [
         f'🎯 <b><a href="{esc(cand.url)}">{esc(title)}</a></b>',
         f'📦 <a href="https://github.com/{esc(cand.repo)}">{esc(cand.repo)}</a> · ⭐️ {stars} · {esc(language)}',
-        f"💰 Награда: <b>{esc(format_reward(cand.reward))}</b>",
+        f"💰 Награда: <b>{esc(format_reward(cand.reward))}</b>"
+        + (f" · {esc(cand.platform)}" if cand.platform else ""),
         f"💬 Комментариев: {cand.comments_count}",
         f"🕒 Опубликовано {humanize_age(cand.created_at, now)}",
     ]
@@ -831,6 +938,48 @@ def collect_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore) -> tuple[
     return candidates, len(queries), failed
 
 
+PLATFORM_FETCHERS: dict[str, Any] = {"opire": fetch_opire}
+
+
+def add_platform_bounties(gh: GitHubClient, cfg: Config, seen: SeenStore,
+                          candidates: dict[str, Candidate], now: datetime | None = None) -> int:
+    """Добавляет баунти с внешних платформ; возвращает число новых кандидатов."""
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(hours=cfg.max_age_hours)
+    bounties: list[PlatformBounty] = []
+    for name in cfg.platforms:
+        try:
+            found = PLATFORM_FETCHERS[name](gh.session)
+        except (requests.RequestException, ValueError) as exc:
+            # Платформа недоступна — не страшно: GitHub-поиск всё равно отработал.
+            log.warning("Платформа %s недоступна: %s", name, exc)
+            continue
+        fresh = [b for b in found if b.created_at >= cutoff]
+        log.info("Платформа %s: активных баунти %d, за окно поиска %d", name, len(found), len(fresh))
+        bounties += fresh
+    if not bounties:
+        return 0
+
+    by_ref: dict[IssueRef, PlatformBounty] = {}
+    for bounty in bounties:
+        by_ref.setdefault(bounty.ref, bounty)
+    issues = gh.fetch_issues(list(by_ref))
+    added = 0
+    for ref, cand in issues.items():
+        if cand.key in seen:
+            continue
+        bounty = by_ref[ref]
+        # Если issue уже нашёл поиск GitHub — просто уточняем награду из API платформы.
+        if cand.key in candidates:
+            cand = candidates[cand.key]
+        else:
+            candidates[cand.key] = cand
+            added += 1
+        cand.platform, cand.platform_reward = bounty.platform, bounty.reward
+        # «Опубликовано» — момент, когда назначили награду, а не когда завели issue.
+        cand.created_at = bounty.created_at
+    return added
+
+
 def filter_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore,
                       candidates: dict[str, Candidate]) -> list[Candidate]:
     # 1. Дешёвые проверки текста — до каких-либо запросов к API.
@@ -874,8 +1023,10 @@ def filter_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore,
             cand.competitors = len(competitors)
             cand.bot_comments = [body for _, is_bot, body in thread["comments"] if is_bot]
 
-        cand.reward = extract_reward(" ".join(cand.labels), cand.title, strip_code(cand.body),
-                                     *(strip_code(body) for body in cand.bot_comments))
+        cand.reward = cand.platform_reward
+        if cand.reward is None:
+            cand.reward = extract_reward(" ".join(cand.labels), cand.title, strip_code(cand.body),
+                                         *(strip_code(body) for body in cand.bot_comments))
         # Не запоминаем: сумму или бота Algora могут добавить позже.
         if cand.reward is None:
             log.info("ПРОПУСК %s — сумма награды не найдена", cand.url)
@@ -938,6 +1089,10 @@ def run(cfg: Config) -> int:
     exit_code = 0
     try:
         candidates, total_queries, failed = collect_candidates(gh, cfg, seen)
+        try:
+            add_platform_bounties(gh, cfg, seen, candidates)
+        except (RateLimitError, requests.RequestException, RuntimeError, ValueError) as exc:
+            log.warning("Баунти с платформ не загружены (%s) — попробую в следующий запуск", exc)
         log.info("Новых кандидатов: %d", len(candidates))
         if failed == total_queries:
             log.error("Все поисковые запросы завершились ошибкой")

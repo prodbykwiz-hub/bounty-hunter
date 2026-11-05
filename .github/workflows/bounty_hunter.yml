@@ -47,6 +47,7 @@ jobs:
           COMPETITION_THRESHOLD: ${{ vars.COMPETITION_THRESHOLD }}
           SKIP_HIGH_COMPETITION: ${{ vars.SKIP_HIGH_COMPETITION }}
           MAX_MESSAGES_PER_RUN: ${{ vars.MAX_MESSAGES_PER_RUN }}
+          PLATFORMS: ${{ vars.PLATFORMS }}
         run: python main.py
 
       # Состояние сохраняем даже при ошибке бота: уже отправленные задачи
