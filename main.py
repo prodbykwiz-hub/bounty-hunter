@@ -42,7 +42,7 @@ SEARCH_PER_PAGE = 100
 SEARCH_MAX_PAGES = 2
 # Свежие issues ищем в каждом запуске, остальную часть окна MAX_AGE_HOURS — срезами по очереди.
 FRESH_WINDOW_HOURS = 24
-BACKFILL_SLICE_HOURS = 72
+BACKFILL_SLICE_HOURS = 48
 CRON_PERIOD_SECONDS = 15 * 60
 OPIRE_REWARDS_URL = "https://api.opire.dev/rewards"
 MAX_PER_REPO_PER_RUN = 3
