@@ -121,6 +121,28 @@ class GitHub:
         log.info("Сканер запущен: %s", repo)
         return True
 
+    def scan_runs(self, repo: str, workflow: str, since: datetime) -> dict[str, int]:
+        """Запуски сканера с момента since: {"total", "failed"} (первые 100 — для отчёта хватает)."""
+        stamp = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+        data = self.api(f"repos/{repo}/actions/workflows/{workflow}/runs?created=%3E%3D{stamp}&per_page=100") or {}
+        runs = data.get("workflow_runs") or []
+        failed = sum(r.get("conclusion") in ("failure", "timed_out", "startup_failure") for r in runs)
+        return {"total": int(data.get("total_count") or len(runs)), "failed": failed}
+
+    def seen_counts(self, repo: str, path: str, since: datetime) -> dict[str, int]:
+        """Сколько issues сканер разобрал с момента since, по статусам (sent, spam, …)."""
+        data = self.api(f"repos/{repo}/contents/{path}")
+        if not isinstance(data, dict) or data.get("encoding") != "base64":
+            return {}
+        raw = json.loads(base64.b64decode(data.get("content", "")).decode("utf-8"))
+        counts: dict[str, int] = {}
+        for entry in (raw.get("issues") or {}).values():
+            at = _parse_time(str(entry.get("at") or ""))
+            if at is not None and at >= since.timestamp():
+                status = str(entry.get("status") or "?")
+                counts[status] = counts.get(status, 0) + 1
+        return counts
+
     def issue(self, node_id: str) -> dict[str, Any] | None:
         node = self.graphql(ISSUE_QUERY, id=node_id).get("node")
         if not node or "number" not in node:

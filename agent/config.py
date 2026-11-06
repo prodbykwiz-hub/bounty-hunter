@@ -71,6 +71,10 @@ class AgentConfig:
     # Gemini через прокси (http://host:port); Claude пишет тексты, если Gemini недоступен.
     gemini_proxy: str = ""
     claude_writer_model: str = "sonnet"
+    # Час (UTC) ежедневного отчёта в Telegram; None — не слать.
+    report_hour: int | None = 6
+    # Удалять клон репозитория, когда задача закрыта (PR открыт или отменена) — для сервера.
+    clean_workdirs: bool = False
 
     @classmethod
     def from_env(cls) -> AgentConfig:
@@ -92,6 +96,13 @@ class AgentConfig:
         github_user = _env("GITHUB_USER", "prodbykwiz-hub")
         scan_repo = _env("SCAN_REPO", f"{github_user}/bounty-hunter")
         scan_repo = "" if scan_repo.lower() == "none" else scan_repo
+        report_raw = _env("REPORT_HOUR", "6")
+        if report_raw.lower() == "none":
+            report_hour = None
+        else:
+            report_hour = _env_int("REPORT_HOUR", 6, minimum=0)
+            if report_hour > 23:
+                raise ConfigError("REPORT_HOUR должно быть от 0 до 23 (час по UTC) или none")
 
         return cls(
             tg_bot_token=required["TG_BOT_TOKEN"],
@@ -113,4 +124,6 @@ class AgentConfig:
             scan_interval=_env_int("SCAN_INTERVAL", 900, minimum=300),
             gemini_proxy=_env("GEMINI_PROXY"),
             claude_writer_model=_env("CLAUDE_WRITER_MODEL", "sonnet"),
+            report_hour=report_hour,
+            clean_workdirs=_env("CLEAN_WORKDIRS").lower() in ("1", "true", "yes"),
         )

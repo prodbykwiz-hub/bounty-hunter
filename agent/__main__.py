@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import html
 import logging
+import shutil
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from agent import coder, prompts, workspace
+from agent import coder, prompts, report, workspace
 from agent.config import AgentConfig, ConfigError
 from agent.gemini import Gemini, GeminiError
 from agent.github import AccountMismatch, GhError, GitHub
@@ -64,6 +65,7 @@ class App:
         self.claude = claude or coder.ClaudeCoder(cfg.claude_bin, cfg.claude_model, cfg.coder_timeout)
         self.gh = gh
         self.store = store
+        self.started = time.monotonic()
         self.callbacks: dict[str, Callable[[str], None]] = {
             "take": self.on_take,
             "skip": self.on_skip,
@@ -79,6 +81,8 @@ class App:
     def run_forever(self) -> None:
         self.gh.ensure_account()
         log.info("Агент запущен: gh=%s, модель=%s", self.cfg.github_user, self.cfg.gemini_model)
+        active = len(self.store.by_stage(*ACTIVE_STAGES))
+        self.bot.send(f"🟢 агент запущен, задач в работе: {active}. /status — задачи, /report — отчёт")
         # Работа, прерванная перезапуском агента, сама не продолжится — предлагаем перезапуск.
         for task in self.store.by_stage(WORKING):
             self._offer_retry(task, "агент перезапускался, работа прервана")
@@ -98,6 +102,8 @@ class App:
                     self.gh.trigger_scan(self.cfg.scan_repo, self.cfg.scan_workflow, self.cfg.scan_interval - 120)
                 except Exception as exc:  # noqa: BLE001 — сбой запуска не должен ронять агента
                     log.warning("Не удалось запустить сканер: %s", exc)
+            if report.is_due(report.utc_now(), self.cfg.report_hour, self.store.last_report):
+                self.send_report(daily=True)
             if time.monotonic() >= next_watch:
                 next_watch = time.monotonic() + self.cfg.watch_interval
                 try:
@@ -121,7 +127,23 @@ class App:
                     log.exception("Ошибка обработки апдейта")
                     self.notify_error(exc)
 
+    def send_report(self, daily: bool = False) -> None:
+        now = report.utc_now()
+        scan, seen = report.collect(self.gh, self.cfg.scan_repo, self.cfg.scan_workflow, now)
+        text = report.build(list(self.store.tasks.values()), self.store.stats, scan, seen,
+                            time.monotonic() - self.started, now)
+        try:
+            self.bot.send(text)
+        except TelegramError:
+            log.exception("Отчёт не отправился")
+        if daily:
+            # Дату ставим и при сбое отправки: иначе отчёт пытался бы уйти на каждом круге цикла.
+            self.store.last_report = now.strftime("%Y-%m-%d")
+            self.store.stats = {}
+            self.store.save()
+
     def notify_error(self, exc: Exception) -> None:
+        self.store.bump("errors")
         try:
             self.bot.send(f"⚠️ ошибка: <code>{esc(str(exc)[:500])}</code>")
         except TelegramError:
@@ -156,6 +178,9 @@ class App:
             return
         if text.startswith("/status"):
             self.on_status()
+            return
+        if text.startswith("/report"):
+            self.send_report()
             return
         reply_to = (message.get("reply_to_message") or {}).get("message_id")
         task = self.store.by_message(reply_to) if reply_to else None
@@ -203,9 +228,26 @@ class App:
             task.message_ids.append(msg_id)
             self.store.put(task)
             return
+        self._count_text()
         task.draft = clean_draft(draft)
         task.stage = AWAITING_POST
         self.send_draft_card(task)
+
+    def _count_text(self) -> None:
+        author = getattr(self.gemini, "last_author", "")
+        if author:
+            self.store.bump(f"texts_{author}")
+
+    def _cleanup(self, task: Task) -> None:
+        """На сервере клон после закрытия задачи не нужен: diff уже отправлен в Telegram."""
+        if not self.cfg.clean_workdirs or not task.workdir:
+            return
+        path = Path(task.workdir)
+        # Удаляем только папки внутри WORK_DIR — на случай испорченного состояния.
+        if path.resolve().is_relative_to(self.cfg.work_dir.resolve()) and path.exists():
+            shutil.rmtree(path, ignore_errors=True)
+            log.info("Удалил рабочую копию %s", path)
+        task.workdir = ""
 
     def send_draft_card(self, task: Task) -> None:
         lines = [
@@ -248,6 +290,7 @@ class App:
         task.stage = POSTED
         task.draft_mode, task.reply_to_comment, task.instructions = "offer", "", []
         self.store.put(task)
+        self.store.bump("posted")
         self.bot.send(f'✅ <a href="{esc(comment["url"])}">ответ опубликован</a> в {issue_link(task)}. '
                       f"слежу за ответом мейнтейнера")
 
@@ -266,6 +309,7 @@ class App:
         task = self.store.get(key)
         if task and task.stage in ACTIVE_STAGES:
             task.stage = DROPPED
+            self._cleanup(task)
             self.store.put(task)
             note = f"\nрабочая копия осталась в <code>{esc(task.workdir)}</code>" if task.workdir else ""
             self.bot.send(f"отменил {issue_link(task)}{note}")
@@ -298,6 +342,7 @@ class App:
 
     def _drop(self, task: Task, text: str) -> None:
         task.stage = DROPPED
+        self._cleanup(task)
         self.store.put(task)
         self.bot.send(text)
 
@@ -404,7 +449,8 @@ class App:
             f"🧩 <b>готово: {issue_link(task)}</b>",
             f"<blockquote>{esc(task.summary)}</blockquote>",
             f"<pre>{esc(stat[-1500:])}</pre>",
-            f"📁 <code>{esc(task.workdir)}</code>\nкод писал claude без запуска команд: прогони тесты сам перед PR",
+            ("" if self.cfg.clean_workdirs else f"📁 <code>{esc(task.workdir)}</code>\n")
+            + "код писал claude без запуска команд: прогони тесты сам перед PR (diff ниже)",
             "<i>ответь на это сообщение, чтобы доработать</i>",
         ])
         msg_id = self.bot.send(text, keyboard([("🚀 открыть PR", f"pr:{task.key}"), ("🗑 отказаться", f"drop:{task.key}")]))
@@ -443,6 +489,7 @@ class App:
             try:
                 meta = self.gemini.json(prompts.pr_system(prompts.load_style(self.cfg.style_file)),
                                         prompts.pr_prompt(issue, task.summary, stat))
+                self._count_text()
             except GeminiError as exc:
                 log.warning("Описание PR не сгенерировано: %s", exc)
                 meta = {}
@@ -459,6 +506,7 @@ class App:
             return
         task.pr_url = url
         task.stage = PR_OPENED
+        self._cleanup(task)
         self.store.put(task)
         self.bot.send(f'🚀 <a href="{esc(url)}">PR открыт</a> для {issue_link(task)}')
 

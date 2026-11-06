@@ -1,4 +1,4 @@
-"""Состояние взятых задач. Хранится локально в agent_state.json (в git не попадает)."""
+"""Состояние взятых задач и счётчики отчёта. Хранится в agent_state.json (в git не попадает)."""
 
 from __future__ import annotations
 
@@ -67,11 +67,18 @@ class TaskStore:
         self.tasks: dict[str, Task] = {}
         # Offset Telegram getUpdates: без него после перезапуска старые нажатия придут снова.
         self.offset: int | None = None
+        # Счётчики для ежедневного отчёта (обнуляются после отправки) и дата последнего отчёта.
+        self.stats: dict[str, int] = {}
+        self.last_report = ""
         if path.exists():
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 self.tasks = {key: Task.from_dict(value) for key, value in raw.get("tasks", {}).items()}
                 self.offset = raw.get("offset")
+                stats = raw.get("stats") or {}
+                if isinstance(stats, dict):
+                    self.stats = {str(k): v for k, v in stats.items() if isinstance(v, int)}
+                self.last_report = str(raw.get("last_report") or "")
             except (OSError, ValueError, TypeError) as exc:
                 backup = path.with_suffix(path.suffix + ".corrupt")
                 log.error("Состояние агента повреждено (%s), копия в %s", exc, backup)
@@ -95,10 +102,16 @@ class TaskStore:
                 return task
         return None
 
+    def bump(self, name: str, amount: int = 1) -> None:
+        self.stats[name] = self.stats.get(name, 0) + amount
+        self.save()
+
     def save(self) -> None:
         payload = {
             "version": 1,
             "offset": self.offset,
+            "stats": self.stats,
+            "last_report": self.last_report,
             "tasks": {key: asdict(task) for key, task in sorted(self.tasks.items())},
         }
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
