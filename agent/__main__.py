@@ -81,6 +81,13 @@ class App:
         # Работа, прерванная перезапуском агента, сама не продолжится — предлагаем перезапуск.
         for task in self.store.by_stage(WORKING):
             self._offer_retry(task, "агент перезапускался, работа прервана")
+        # Черновик, не дописанный из‑за перезапуска или сбоя Gemini, тоже предлагаем повторить.
+        for task in self.store.by_stage(DRAFTING):
+            task.message_ids.append(self.bot.send(
+                f"✍️ черновик для {issue_link(task)} не готов, агент перезапускался",
+                keyboard([("🔁 написать", f"redo:{task.key}"), ("отмена", f"drop:{task.key}")]),
+            ))
+            self.store.put(task)
         next_watch = next_scan = 0.0
         while True:
             if self.cfg.scan_repo and time.monotonic() >= next_scan:
