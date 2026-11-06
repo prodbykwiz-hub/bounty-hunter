@@ -40,6 +40,45 @@ query($id: ID!) {
 """
 
 
+APPROVED_QUERY = """
+query($q: String!) {
+  search(query: $q, type: ISSUE, first: 20) {
+    nodes {
+      ... on Issue {
+        number
+        timelineItems(itemTypes: [ASSIGNED_EVENT], first: 5) {
+          nodes { ... on AssignedEvent { createdAt actor { login } assignee { ... on User { login } } } }
+        }
+        comments(first: 40) { nodes { body createdAt author { login } } }
+      }
+    }
+  }
+}
+"""
+MAX_APPROVED_EXAMPLES = 3
+
+
+def approved_from_issue(issue: dict[str, Any], skip_logins: set[str]) -> dict[str, str] | None:
+    """Отклик, после которого автора назначили: его самый подробный комментарий до назначения."""
+    for event in (issue.get("timelineItems") or {}).get("nodes") or []:
+        login = ((event or {}).get("assignee") or {}).get("login") or ""
+        assigned_at = (event or {}).get("createdAt") or ""
+        actor = ((event or {}).get("actor") or {}).get("login") or ""
+        # Сам себя назначил — это мейнтейнер, а не одобренный отклик.
+        if not login or login.lower() in skip_logins or actor.lower() == login.lower():
+            continue
+        before = [
+            c for c in (issue.get("comments") or {}).get("nodes") or []
+            if ((c.get("author") or {}).get("login") or "").lower() == login.lower()
+            and (c.get("createdAt") or "") <= assigned_at and (c.get("body") or "").strip()
+        ]
+        if before:
+            # Самый длинный — обычно само предложение с планом, а не напоминание «assign me».
+            best = max(before, key=lambda c: len(c["body"].strip()))
+            return {"login": login, "number": str(issue.get("number")), "body": best["body"].strip()}
+    return None
+
+
 def _parse_time(value: str) -> float | None:
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
@@ -170,6 +209,27 @@ class GitHub:
                 for c in node["comments"]["nodes"]
             ],
         }
+
+    def approved_applications(self, repo: str, exclude_number: int, me: str) -> list[dict[str, str]]:
+        """Отклики на баунти этого репо, после которых автора назначили исполнителем.
+
+        Мейнтейнеры одного проекта одобряют похожие отклики: по ним видно нужную длину,
+        степень технической конкретики и принятые команды (/attempt и т. п.).
+        """
+        data = self.graphql(APPROVED_QUERY, q=f"repo:{repo} is:issue bounty sort:updated-desc")
+        skip = {me.lower()}
+        examples: list[dict[str, str]] = []
+        for issue in (data.get("search") or {}).get("nodes") or []:
+            if not issue or issue.get("number") == exclude_number:
+                continue
+            found = approved_from_issue(issue, skip)
+            # Один пример на человека: иначе примеры повторяют манеру одного автора.
+            if found and found["login"].lower() not in skip:
+                skip.add(found["login"].lower())
+                examples.append(found)
+            if len(examples) >= MAX_APPROVED_EXAMPLES:
+                break
+        return examples
 
     def ai_policy(self, repo: str) -> str:
         """Фрагменты правил репозитория про AI; пустая строка, если ничего не нашлось."""

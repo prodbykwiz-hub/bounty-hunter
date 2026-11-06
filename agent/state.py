@@ -40,6 +40,8 @@ class Task:
     draft_mode: str = "offer"
     reply_to_comment: str = ""
     ai_policy: str = ""
+    # Отклики в этом репо, после которых автора назначили: примеры для черновика.
+    approved_examples: list[dict] = field(default_factory=list)
     # Сообщения в Telegram, на которые можно ответить текстом-правкой.
     message_ids: list[int] = field(default_factory=list)
     comment_id: int | None = None

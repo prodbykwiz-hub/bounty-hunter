@@ -207,6 +207,10 @@ class App:
             self.bot.send(f"{issue_link(task)} уже назначен на {esc(', '.join(others))}")
             return
         task.ai_policy = self.gh.ai_policy(task.repo)
+        try:
+            task.approved_examples = self.gh.approved_applications(task.repo, task.number, self.cfg.github_user)
+        except GhError as exc:
+            log.warning("Не нашёл одобренных откликов в %s: %s", task.repo, exc)
         self.store.put(task)
         self.write_draft(task, issue)
 
@@ -216,7 +220,8 @@ class App:
             system = prompts.reply_system(style)
             prompt = prompts.reply_prompt(issue, task.reply_to_comment, task.instructions)
         else:
-            system, prompt = prompts.comment_system(style), prompts.comment_prompt(issue, task.instructions)
+            system = prompts.comment_system(style)
+            prompt = prompts.comment_prompt(issue, task.instructions, task.approved_examples)
         try:
             draft = self.gemini.text(system, prompt)
         except GeminiError as exc:
@@ -254,6 +259,9 @@ class App:
             f"✍️ <b>ответ для {issue_link(task)}</b>",
             f"<blockquote>{esc(task.draft)}</blockquote>",
         ]
+        if task.approved_examples and task.draft_mode == "offer":
+            who = ", ".join(ex["login"] for ex in task.approved_examples)
+            lines.append(f"<i>учёл одобренные отклики в этом репо: {esc(who)}</i>")
         if task.ai_policy:
             lines.append(f"⚠️ <b>в правилах репо есть про ai:</b>\n<i>{esc(task.ai_policy)}</i>")
         lines.append("<i>ответь на это сообщение текстом, чтобы поправить</i>")
