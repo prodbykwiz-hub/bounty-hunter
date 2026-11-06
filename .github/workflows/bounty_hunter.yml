@@ -55,6 +55,13 @@ jobs:
           SKIP_HIGH_COMPETITION: ${{ vars.SKIP_HIGH_COMPETITION }}
           MAX_MESSAGES_PER_RUN: ${{ vars.MAX_MESSAGES_PER_RUN }}
           PLATFORMS: ${{ vars.PLATFORMS }}
+          GIGS: ${{ vars.GIGS }}
+          GIG_MIN_USD: ${{ vars.GIG_MIN_USD }}
+          GIG_MAX_COMPETITORS: ${{ vars.GIG_MAX_COMPETITORS }}
+          GIG_MAX_AGE_HOURS: ${{ vars.GIG_MAX_AGE_HOURS }}
+          GIG_MAX_PER_RUN: ${{ vars.GIG_MAX_PER_RUN }}
+          SUPERTEAM_CATEGORY: ${{ vars.SUPERTEAM_CATEGORY }}
+          FREELANCER_JOBS: ${{ vars.FREELANCER_JOBS }}
         run: python main.py
 
       # Состояние сохраняем даже при ошибке бота: уже отправленные задачи

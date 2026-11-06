@@ -25,6 +25,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from agent import gigs
+
 log = logging.getLogger("bounty_hunter")
 
 GITHUB_API = "https://api.github.com"
@@ -252,6 +254,12 @@ class Config:
     state_file: Path
     dry_run: bool
     platforms: tuple[str, ...] = ("opire",)
+    # Заказы вне GitHub (agent/gigs.py): площадки, фильтр и лимит карточек за запуск.
+    gig_sources: tuple[str, ...] = ("superteam",)
+    gig_filter: gigs.GigFilter = field(default_factory=gigs.GigFilter)
+    superteam_category: str = "All"
+    freelancer_jobs: tuple[int, ...] = gigs.FREELANCER_DEFAULT_JOBS
+    gig_max_per_run: int = 10
 
     @classmethod
     def from_env(cls) -> Config:
@@ -280,6 +288,24 @@ class Config:
             raise ConfigError(f"PLATFORMS: неизвестные платформы {', '.join(unknown)}; "
                               f"доступны: {', '.join(PLATFORM_FETCHERS)}")
 
+        # GIGS=none отключает заказы. Freelancer по умолчанию выключен: см. README про его правила.
+        gig_sources = tuple(s.strip().lower() for s in _env_str("GIGS", "superteam").split(",") if s.strip())
+        gig_sources = () if gig_sources == ("none",) else gig_sources
+        unknown = [s for s in gig_sources if s not in GIG_SOURCES]
+        if unknown:
+            raise ConfigError(f"GIGS: неизвестные площадки {', '.join(unknown)}; доступны: {', '.join(GIG_SOURCES)}")
+        superteam_category = _env_str("SUPERTEAM_CATEGORY", "All")
+        if superteam_category not in gigs.SUPERTEAM_CATEGORIES:
+            raise ConfigError(f"SUPERTEAM_CATEGORY: одно из {', '.join(gigs.SUPERTEAM_CATEGORIES)}")
+        jobs_raw = _env_str("FREELANCER_JOBS")
+        try:
+            freelancer_jobs = (tuple(int(j) for j in jobs_raw.split(",") if j.strip())
+                               if jobs_raw else gigs.FREELANCER_DEFAULT_JOBS)
+        except ValueError:
+            raise ConfigError("FREELANCER_JOBS: id категорий через запятую, например 320,13") from None
+        if not freelancer_jobs:
+            raise ConfigError("FREELANCER_JOBS не может быть пустым")
+
         max_age_hours = _env_int("MAX_AGE_HOURS", 720, minimum=1)
         # TTL записи обязан пережить окно поиска, иначе задача найдётся снова и придёт дубль.
         min_ttl_days = max_age_hours // 24 + 2
@@ -301,6 +327,15 @@ class Config:
             state_file=Path(_env_str("STATE_FILE", "seen_issues.json")),
             dry_run=dry_run,
             platforms=platforms,
+            gig_sources=gig_sources,
+            gig_filter=gigs.GigFilter(
+                min_usd=_env_int("GIG_MIN_USD", 30),
+                max_competitors=_env_int("GIG_MAX_COMPETITORS", 30),
+                max_age_hours=_env_int("GIG_MAX_AGE_HOURS", 24, minimum=1),
+            ),
+            superteam_category=superteam_category,
+            freelancer_jobs=freelancer_jobs,
+            gig_max_per_run=_env_int("GIG_MAX_PER_RUN", 10, minimum=1),
         )
 
 
@@ -939,6 +974,7 @@ def collect_candidates(gh: GitHubClient, cfg: Config, seen: SeenStore) -> tuple[
 
 
 PLATFORM_FETCHERS: dict[str, Any] = {"opire": fetch_opire}
+GIG_SOURCES = ("superteam", "freelancer")
 
 
 def add_platform_bounties(gh: GitHubClient, cfg: Config, seen: SeenStore,
@@ -1083,6 +1119,35 @@ def notify(cfg: Config, seen: SeenStore, candidates: list[Candidate]) -> int:
     return sent
 
 
+def notify_gigs(cfg: Config, seen: SeenStore, telegram: TelegramClient | None) -> int:
+    """Заказы Superteam/Freelancer: новые карточки с кнопкой «✍️ отклик» для агента."""
+    if not cfg.gig_sources:
+        return 0
+    found = gigs.collect(requests.Session(), cfg.gig_sources, cfg.gig_filter,
+                         cfg.superteam_category, cfg.freelancer_jobs, log=log)
+    # Лимит на каждую площадку отдельно, иначе поток с Freelancer вытеснит Superteam.
+    # Сначала самые свежие; у Superteam даты публикации нет, там порядок ленты (по дедлайну).
+    fresh: list[gigs.Gig] = []
+    for prefix in ("st", "fl"):
+        batch = [g for g in found if g.prefix == prefix and g.key not in seen]
+        batch.sort(key=lambda g: g.created_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        if len(batch) > cfg.gig_max_per_run:
+            log.info("Новых заказов %s: %d, лимит за запуск %d — остальные позже",
+                     gigs.PLATFORM_NAMES[prefix], len(batch), cfg.gig_max_per_run)
+        fresh += batch[: cfg.gig_max_per_run]
+    sent = 0
+    for gig in fresh:
+        text = gigs.format_card(gig)
+        if telegram is None:
+            log.info("DRY_RUN, заказ не отправлен:\n%s", text)
+            continue
+        if telegram.send(text, gigs.card_keyboard(gig)):
+            seen.add(gig.key, "sent", gig.url)
+            sent += 1
+            log.info("Заказ отправлен: %s", gig.url)
+    return sent
+
+
 def run(cfg: Config) -> int:
     seen = SeenStore(cfg.state_file)
     gh = GitHubClient(cfg.github_token)
@@ -1107,6 +1172,11 @@ def run(cfg: Config) -> int:
             log.info("Прошли фильтры: %d", len(ready))
             sent = notify(cfg, seen, ready)
             log.info("Отправлено в Telegram: %d", sent)
+        try:
+            telegram = None if cfg.dry_run else TelegramClient(cfg.tg_bot_token, cfg.tg_chat_id)
+            log.info("Заказов отправлено в Telegram: %d", notify_gigs(cfg, seen, telegram))
+        except requests.RequestException as exc:
+            log.warning("Заказы не обработаны (%s) — попробую в следующий запуск", exc)
     finally:
         if cfg.dry_run:
             log.info("DRY_RUN: файл состояния не изменяется")
