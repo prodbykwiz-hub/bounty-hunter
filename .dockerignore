@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+agent_state.json*
+seen_issues.json
+__pycache__
+**/__pycache__
+*.py[cod]
+*.log
+.venv
+venv
+.idea
+.vscode

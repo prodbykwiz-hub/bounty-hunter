@@ -1,0 +1,52 @@
+# Render Blueprint: агент как фоновый воркер с диском для состояния.
+# Сканер по-прежнему работает в GitHub Actions; агент запускает его каждые 15 минут.
+services:
+  - type: worker
+    name: bounty-agent
+    runtime: docker
+    # Воркеры на бесплатном тарифе Render не запускаются. Если Claude падает по памяти — standard.
+    plan: starter
+    # Во Франкфурте Gemini API доступен (в части стран Google его закрывает).
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    # Сканер коммитит seen_issues.json каждые 15 минут — пересобирать агента из-за этого не нужно.
+    buildFilter:
+      paths:
+        - agent/**
+        - Dockerfile
+        - docker-entrypoint.sh
+        - requirements.txt
+    disk:
+      name: agent-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      # Секреты вводятся в панели Render при создании (sync: false — в репозитории их нет).
+      - key: TG_BOT_TOKEN
+        sync: false
+      - key: TG_CHAT_ID
+        sync: false
+      - key: TG_OWNER_ID
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # Токен GitHub аккаунта prodbykwiz-hub (scopes: repo, workflow); gh берёт его из GH_TOKEN.
+      - key: GH_TOKEN
+        sync: false
+      # Токен подписки Claude из `claude setup-token` (действует год).
+      - key: CLAUDE_CODE_OAUTH_TOKEN
+        sync: false
+      - key: GITHUB_USER
+        value: prodbykwiz-hub
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: AGENT_STATE_FILE
+        value: /data/agent_state.json
+      - key: WORK_DIR
+        value: /data/work
+      - key: CLEAN_WORKDIRS
+        value: "true"
+      # Ежедневный отчёт в 06:00 UTC (09:00 МСК)
+      - key: REPORT_HOUR
+        value: "6"

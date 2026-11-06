@@ -1,0 +1,47 @@
+name: agent image
+
+# Проверка Docker-образа агента до того, как его соберёт Render.
+on:
+  push:
+    paths:
+      - agent/**
+      - Dockerfile
+      - docker-entrypoint.sh
+      - requirements.txt
+      - .github/workflows/agent_image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: build
+        run: docker build -t bounty-agent .
+      - name: smoke test
+        run: |
+          docker run --rm --entrypoint sh bounty-agent -c '
+            set -e
+            python --version
+            git --version
+            gh --version | head -1
+            claude --version
+            python -c "import agent.__main__, agent.report"
+          '
+          # entrypoint: диск от root отдаётся agent, процесс работает не от root
+          mkdir -p data && sudo chown root:root data
+          docker run --rm -v "$PWD/data:/data" bounty-agent sh -c '
+            set -e
+            test "$(id -un)" = agent
+            test "$HOME" = /home/agent
+            test -d "$WORK_DIR" && touch "$AGENT_STATE_FILE"
+            echo entrypoint ok
+          '
+          # без секретов агент должен выйти с понятной ошибкой конфигурации
+          out=$(docker run --rm bounty-agent 2>&1 || true)
+          echo "$out"
+          echo "$out" | grep -q "Не заданы переменные"
