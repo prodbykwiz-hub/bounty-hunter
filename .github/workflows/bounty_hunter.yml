@@ -19,6 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Бесплатный сервис Render засыпает без входящих запросов: будим агента.
+      # Адрес — переменная AGENT_URL (Settings → Secrets and variables → Variables).
+      - name: Wake agent
+        if: vars.AGENT_URL != ''
+        continue-on-error: true
+        run: curl -fsS -m 60 --retry 2 "${{ vars.AGENT_URL }}/health" || true
+
       - name: Checkout
         uses: actions/checkout@v4
 

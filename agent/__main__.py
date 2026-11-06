@@ -5,13 +5,15 @@ from __future__ import annotations
 import html
 import logging
 import shutil
+import signal
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from agent import coder, prompts, report, workspace
+from agent import coder, keepalive, prompts, report, workspace
+from agent.gist_state import GistState
 from agent.config import AgentConfig, ConfigError
 from agent.gemini import Gemini, GeminiError
 from agent.github import AccountMismatch, GhError, GitHub
@@ -490,6 +492,12 @@ class App:
             self._drop(task, f"🔒 {issue_link(task)} закрыт или удалён, PR не открываю")
             return
         path = Path(task.workdir)
+        if not task.workdir or not (path / ".git").exists():
+            # На сервере без диска клон пропадает при перезапуске: код придётся написать заново.
+            task.stage = WORKING
+            task.summary = ""
+            self._offer_retry(task, "рабочая копия пропала после перезапуска сервера, claude напишет код заново")
+            return
         try:
             fork = self.gh.fork(task.repo)
             workspace.push(path, fork, task.branch)
@@ -540,9 +548,25 @@ def main() -> int:
     if not claude.available():
         log.error("Не найден %s: установи Claude Code CLI или укажи путь в CLAUDE_BIN", cfg.claude_bin)
         return 1
+    if cfg.port:
+        # Порт открываем сразу: Render ждёт его, пока агент восстанавливает состояние.
+        keepalive.start_server(cfg.port)
+        if cfg.public_url:
+            keepalive.start_self_ping(cfg.public_url)
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
+    gist: GistState | None = None
     try:
         gh = GitHub(cfg.github_user)
+        if cfg.state_gist:
+            gist = GistState(gh, cfg.state_file)
+            gist.restore()
+            gist.start()
+
+            def on_term(signum: int, frame: Any) -> None:
+                raise KeyboardInterrupt
+
+            # Render останавливает сервис через SIGTERM: успеваем сохранить состояние.
+            signal.signal(signal.SIGTERM, on_term)
         # Тексты: Gemini, а если он недоступен (регион, квота) — Claude без инструментов.
         texts = Writer(Gemini(cfg.gemini_api_key, cfg.gemini_model, cfg.gemini_proxy),
                        ClaudeWriter(cfg.claude_bin, cfg.claude_writer_model))
@@ -553,6 +577,12 @@ def main() -> int:
         return 1
     except KeyboardInterrupt:
         log.info("Остановлено")
+    finally:
+        if gist is not None:
+            try:
+                gist.push()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Не удалось сохранить состояние в gist при остановке: %s", exc)
     return 0
 
 

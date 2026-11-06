@@ -1,14 +1,17 @@
-# Render Blueprint: агент как фоновый воркер с диском для состояния.
-# Сканер по-прежнему работает в GitHub Actions; агент запускает его каждые 15 минут.
+# Render Blueprint: агент как бесплатный веб-сервис.
+# Бесплатный сервис засыпает через 15 минут без входящих запросов и не имеет диска, поэтому:
+# - агент отвечает на /health и сам пингует свой адрес раз в 5 минут;
+# - сканер в GitHub Actions будит его по переменной AGENT_URL;
+# - состояние задач хранится в секретном gist (STATE_GIST), клоны — во временной папке.
 services:
-  - type: worker
+  - type: web
     name: bounty-agent
     runtime: docker
-    # Воркеры на бесплатном тарифе Render не запускаются. Если Claude падает по памяти — standard.
-    plan: starter
+    plan: free
     # Во Франкфурте Gemini API доступен (в части стран Google его закрывает).
     region: frankfurt
     dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
     autoDeploy: true
     # Сканер коммитит seen_issues.json каждые 15 минут — пересобирать агента из-за этого не нужно.
     buildFilter:
@@ -17,10 +20,6 @@ services:
         - Dockerfile
         - docker-entrypoint.sh
         - requirements.txt
-    disk:
-      name: agent-data
-      mountPath: /data
-      sizeGB: 5
     envVars:
       # Секреты вводятся в панели Render при создании (sync: false — в репозитории их нет).
       - key: TG_BOT_TOKEN
@@ -31,7 +30,7 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
-      # Токен GitHub аккаунта prodbykwiz-hub (scopes: repo, workflow); gh берёт его из GH_TOKEN.
+      # Токен GitHub аккаунта prodbykwiz-hub (scopes: repo, workflow, gist); gh берёт его из GH_TOKEN.
       - key: GH_TOKEN
         sync: false
       # Токен подписки Claude из `claude setup-token` (действует год).
@@ -41,6 +40,8 @@ services:
         value: prodbykwiz-hub
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
+      - key: STATE_GIST
+        value: "true"
       - key: AGENT_STATE_FILE
         value: /data/agent_state.json
       - key: WORK_DIR

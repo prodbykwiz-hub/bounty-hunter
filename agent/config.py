@@ -75,6 +75,10 @@ class AgentConfig:
     report_hour: int | None = 6
     # Удалять клон репозитория, когда задача закрыта (PR открыт или отменена) — для сервера.
     clean_workdirs: bool = False
+    # Бесплатный веб-сервис Render: HTTP-порт, публичный адрес для самопинга, состояние в gist.
+    port: int = 0
+    public_url: str = ""
+    state_gist: bool = False
 
     @classmethod
     def from_env(cls) -> AgentConfig:
@@ -126,4 +130,8 @@ class AgentConfig:
             claude_writer_model=_env("CLAUDE_WRITER_MODEL", "sonnet"),
             report_hour=report_hour,
             clean_workdirs=_env("CLEAN_WORKDIRS").lower() in ("1", "true", "yes"),
+            port=_env_int("PORT", 0, minimum=0),
+            # Render сам задаёт RENDER_EXTERNAL_URL веб-сервису.
+            public_url=_env("PUBLIC_URL", _env("RENDER_EXTERNAL_URL")),
+            state_gist=_env("STATE_GIST").lower() in ("1", "true", "yes"),
         )
