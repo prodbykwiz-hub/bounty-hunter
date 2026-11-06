@@ -63,6 +63,11 @@ class AgentConfig:
     claude_bin: str = "claude"
     claude_model: str = ""
     coder_timeout: int = 1800
+    # Репозиторий сканера: агент сам запускает его workflow, потому что cron GitHub ненадёжен.
+    # Пустое значение (SCAN_REPO=none) — не запускать.
+    scan_repo: str = ""
+    scan_workflow: str = "bounty_hunter.yml"
+    scan_interval: int = 900
 
     @classmethod
     def from_env(cls) -> AgentConfig:
@@ -81,6 +86,10 @@ class AgentConfig:
         except ValueError as exc:
             raise ConfigError("TG_OWNER_ID должен быть числовым id пользователя Telegram") from exc
 
+        github_user = _env("GITHUB_USER", "prodbykwiz-hub")
+        scan_repo = _env("SCAN_REPO", f"{github_user}/bounty-hunter")
+        scan_repo = "" if scan_repo.lower() == "none" else scan_repo
+
         return cls(
             tg_bot_token=required["TG_BOT_TOKEN"],
             tg_chat_id=required["TG_CHAT_ID"],
@@ -88,7 +97,7 @@ class AgentConfig:
             gemini_api_key=required["GEMINI_API_KEY"],
             # Pro (gemini-3.1-pro-preview) доступна только с оплатой: на бесплатном тарифе квота 0.
             gemini_model=_env("GEMINI_MODEL", "gemini-3.8-flash"),
-            github_user=_env("GITHUB_USER", "prodbykwiz-hub"),
+            github_user=github_user,
             work_dir=Path(_env("WORK_DIR", str(Path.home() / "bounty-work"))).expanduser(),
             state_file=Path(_env("AGENT_STATE_FILE", str(PROJECT_ROOT / "agent_state.json"))),
             style_file=Path(_env("STYLE_FILE", str(PROJECT_ROOT / "agent" / "style.md"))),
@@ -96,4 +105,7 @@ class AgentConfig:
             claude_bin=_env("CLAUDE_BIN", "claude"),
             claude_model=_env("CLAUDE_MODEL"),
             coder_timeout=_env_int("CODER_TIMEOUT", 1800, minimum=60),
+            scan_repo=scan_repo,
+            scan_workflow=_env("SCAN_WORKFLOW", "bounty_hunter.yml"),
+            scan_interval=_env_int("SCAN_INTERVAL", 900, minimum=300),
         )

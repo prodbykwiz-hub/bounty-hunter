@@ -81,8 +81,15 @@ class App:
         # Работа, прерванная перезапуском агента, сама не продолжится — предлагаем перезапуск.
         for task in self.store.by_stage(WORKING):
             self._offer_retry(task, "агент перезапускался, работа прервана")
-        next_watch = 0.0
+        next_watch = next_scan = 0.0
         while True:
+            if self.cfg.scan_repo and time.monotonic() >= next_scan:
+                next_scan = time.monotonic() + self.cfg.scan_interval
+                try:
+                    # Пропуск, если сканер недавно отработал по cron: запас 2 минуты на задержки.
+                    self.gh.trigger_scan(self.cfg.scan_repo, self.cfg.scan_workflow, self.cfg.scan_interval - 120)
+                except Exception as exc:  # noqa: BLE001 — сбой запуска не должен ронять агента
+                    log.warning("Не удалось запустить сканер: %s", exc)
             if time.monotonic() >= next_watch:
                 next_watch = time.monotonic() + self.cfg.watch_interval
                 try:

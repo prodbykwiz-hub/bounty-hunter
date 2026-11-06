@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import time
+from datetime import datetime
 from typing import Any
 
 log = logging.getLogger("bounty_agent")
@@ -37,6 +38,13 @@ query($id: ID!) {
   }
 }
 """
+
+
+def _parse_time(value: str) -> float | None:
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
 
 
 class GhError(Exception):
@@ -90,6 +98,28 @@ class GitHub:
                 f"gh залогинен как {user}, а нужен {self.expected_user}. "
                 f"Выполни: gh auth login, затем gh auth switch --user {self.expected_user}"
             )
+
+    def trigger_scan(self, repo: str, workflow: str, min_gap: int) -> bool:
+        """Запускает workflow сканера, если он сейчас не идёт и не запускался последние min_gap секунд.
+
+        Cron в GitHub Actions на новых репозиториях пропускает большую часть запусков,
+        а workflow_dispatch выполняется всегда. Возвращает True, если запуск отправлен.
+        """
+        self.ensure_account()
+        runs = (self.api(f"repos/{repo}/actions/workflows/{workflow}/runs?per_page=1") or {}).get("workflow_runs") or []
+        if runs:
+            last = runs[0]
+            if last.get("status") != "completed":
+                log.info("Сканер уже идёт (%s), новый запуск не нужен", last.get("status"))
+                return False
+            started = _parse_time(last.get("run_started_at") or last.get("created_at") or "")
+            if started is not None and time.time() - started < min_gap:
+                log.info("Сканер запускался %d с назад, жду", int(time.time() - started))
+                return False
+        branch = (self.api(f"repos/{repo}") or {}).get("default_branch") or "main"
+        self.api(f"repos/{repo}/actions/workflows/{workflow}/dispatches", method="POST", payload={"ref": branch})
+        log.info("Сканер запущен: %s", repo)
+        return True
 
     def issue(self, node_id: str) -> dict[str, Any] | None:
         node = self.graphql(ISSUE_QUERY, id=node_id).get("node")
