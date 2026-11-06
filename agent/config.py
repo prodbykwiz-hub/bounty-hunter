@@ -79,6 +79,8 @@ class AgentConfig:
     port: int = 0
     public_url: str = ""
     state_gist: bool = False
+    # Факты о себе для откликов на заказы Freelancer/Superteam.
+    gig_profile_file: Path = PROJECT_ROOT / "agent" / "gig_profile.md"
 
     @classmethod
     def from_env(cls) -> AgentConfig:
@@ -134,4 +136,5 @@ class AgentConfig:
             # Render сам задаёт RENDER_EXTERNAL_URL веб-сервису.
             public_url=_env("PUBLIC_URL", _env("RENDER_EXTERNAL_URL")),
             state_gist=_env("STATE_GIST").lower() in ("1", "true", "yes"),
+            gig_profile_file=Path(_env("GIG_PROFILE_FILE", str(PROJECT_ROOT / "agent" / "gig_profile.md"))),
         )

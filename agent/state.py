@@ -35,6 +35,8 @@ class Task:
     title: str
     url: str
     stage: str = DRAFTING
+    # "issue" — задача на GitHub, "gig" — заказ Freelancer/Superteam (только черновик отклика).
+    kind: str = "issue"
     draft: str = ""
     # "offer" — первое предложение взять задачу, "reply" — ответ на вопрос мейнтейнера.
     draft_mode: str = "offer"

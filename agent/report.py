@@ -19,6 +19,13 @@ STAGE_NAMES = {
 }
 
 
+def _name(task: Task) -> str:
+    if task.kind == "gig":
+        title = task.title if len(task.title) <= 50 else task.title[:49] + "…"
+        return f"{task.repo}: {title}"
+    return f"{task.repo}#{task.number}"
+
+
 def is_due(now: datetime, hour: int | None, last_report: str) -> bool:
     """Пора ли слать отчёт: наступил час hour (UTC) и сегодня отчёта ещё не было."""
     if hour is None:
@@ -63,10 +70,14 @@ def build(tasks: list[Task], stats: dict[str, int], scan: dict[str, int] | None,
     active = [t for t in tasks if t.stage in ACTIVE_STAGES]
     if active:
         lines.append(f"• в работе {len(active)}:")
-        lines += [f'   – <a href="{esc(t.url)}">{esc(t.repo)}#{t.number}</a>: '
+        lines += [f'   – <a href="{esc(t.url)}">{esc(_name(t))}</a>: '
                   f"{STAGE_NAMES.get(t.stage, t.stage)}" for t in active]
     else:
         lines.append("• задач в работе нет")
+
+    gig_drafts, gig_sent = stats.get("gig_drafts", 0), stats.get("gig_sent", 0)
+    if gig_drafts or gig_sent:
+        lines.append(f"• заказы: черновиков откликов {gig_drafts}, ты отправил {gig_sent}")
 
     gemini, claude = stats.get("texts_gemini", 0), stats.get("texts_claude", 0)
     if gemini or claude:

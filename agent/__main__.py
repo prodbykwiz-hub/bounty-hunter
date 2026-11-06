@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from agent import coder, keepalive, prompts, report, workspace
+from agent import coder, gigs, keepalive, prompts, report, workspace
 from agent.gist_state import GistState
 from agent.config import AgentConfig, ConfigError
 from agent.gemini import Gemini, GeminiError
@@ -38,6 +38,8 @@ CALLBACK_ACK = {
     "drop": "отменено",
     "work": "запускаю…",
     "pr": "открываю PR…",
+    "gig": "пишу отклик…",
+    "gigsent": "отмечено",
 }
 
 
@@ -54,6 +56,8 @@ def clean_draft(text: str) -> str:
 
 
 def issue_link(task: Task) -> str:
+    if task.kind == "gig":
+        return f'<a href="{esc(task.url)}">{esc(report._name(task))}</a>'
     return f'<a href="{esc(task.url)}">{esc(task.repo)}#{task.number}</a>'
 
 
@@ -76,6 +80,8 @@ class App:
             "drop": self.on_drop,
             "work": self.on_work,
             "pr": self.on_pr,
+            "gig": self.on_gig,
+            "gigsent": self.on_gig_sent,
         }
 
     # ------------------------------------------------------------ loop
@@ -309,11 +315,83 @@ class App:
         if not task or task.stage not in (DRAFTING, AWAITING_POST):
             self.bot.send("этот черновик уже неактуален")
             return
+        if task.kind == "gig":
+            self.write_gig_draft(task)
+            return
         issue = self.gh.issue(key)
         if issue is None:
             self.bot.send("не нашёл этот issue, возможно его удалили")
             return
         self.write_draft(task, issue)
+
+    # ------------------------------------------------------------ gigs
+
+    def on_gig(self, key: str) -> None:
+        """Заказ Freelancer/Superteam: только черновик отклика, отправляет человек."""
+        if not gigs.is_gig_key(key):
+            self.bot.send("непонятный заказ, кнопка устарела")
+            return
+        existing = self.store.get(key)
+        if existing and existing.stage in ACTIVE_STAGES:
+            self.bot.send(f"черновик уже есть: {issue_link(existing)}")
+            return
+        task = Task(key=key, repo=gigs.PLATFORM_NAMES[key.split(":", 1)[0]], number=0,
+                    title="", url="", kind="gig")
+        self.write_gig_draft(task)
+
+    def write_gig_draft(self, task: Task) -> None:
+        try:
+            detail = gigs.fetch_detail(task.key)
+        except gigs.GigError as exc:
+            if task.stage in ACTIVE_STAGES and task.title:
+                task.stage = DROPPED
+                self.store.put(task)
+            self.bot.send(f"не открыл заказ{' ' + issue_link(task) if task.url else ''}: {esc(str(exc))}")
+            return
+        task.title, task.url = detail["title"], detail["url"]
+        task.stage = DRAFTING
+        self.store.put(task)
+        style = prompts.load_style(self.cfg.style_file)
+        profile = prompts.load_style(self.cfg.gig_profile_file)
+        try:
+            draft = self.gemini.text(prompts.gig_system(style, profile), prompts.gig_prompt(detail, task.instructions))
+        except GeminiError as exc:
+            task.message_ids.append(self.bot.send(
+                f"⚠️ не смог написать отклик для {issue_link(task)}: <code>{esc(str(exc)[:300])}</code>",
+                keyboard([("🔁 ещё раз", f"redo:{task.key}"), ("отмена", f"drop:{task.key}")]),
+            ))
+            self.store.put(task)
+            return
+        self._count_text()
+        self.store.bump("gig_drafts")
+        task.draft = clean_draft(draft)
+        task.stage = AWAITING_POST
+        lines = [
+            f"💼 <b>отклик на {issue_link(task)}</b> · {esc(detail.get('budget') or '')}",
+            f"<blockquote>{esc(task.draft)}</blockquote>",
+        ]
+        if detail.get("agent_access") == "HUMAN_ONLY":
+            lines.append("<i>заказ только для людей: отправь от себя и проверь, что текст звучит по-твоему</i>")
+        lines.append("<i>скопируй и отправь сам на площадке. [в скобках] — впиши своё. "
+                     "ответь на это сообщение текстом, чтобы поправить</i>")
+        task.message_ids.append(self.bot.send(
+            "\n\n".join(lines),
+            keyboard([("✅ отправил", f"gigsent:{task.key}"), ("🔁 переписать", f"redo:{task.key}")],
+                     [("отмена", f"drop:{task.key}")]),
+        ))
+        self.store.put(task)
+
+    def on_gig_sent(self, key: str) -> None:
+        task = self.store.get(key)
+        if not task or task.kind != "gig" or task.stage != AWAITING_POST:
+            self.bot.send("этот черновик уже неактуален")
+            return
+        # Ответ клиента приходит на площадке, следить за ним бот не умеет: задача закрыта.
+        task.stage = DROPPED
+        task.posted_at = utc_now()
+        self.store.put(task)
+        self.store.bump("gig_sent")
+        self.bot.send(f"👍 записал: отклик на {issue_link(task)} отправлен")
 
     def on_drop(self, key: str) -> None:
         task = self.store.get(key)
