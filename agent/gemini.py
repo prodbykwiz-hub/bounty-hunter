@@ -13,9 +13,9 @@ import requests
 log = logging.getLogger("bounty_agent")
 
 API = "https://generativelanguage.googleapis.com/v1beta/models"
-# Pro-модели с размышлением отвечают долго.
-REQUEST_TIMEOUT = 300
-MAX_RETRIES = 5
+# Flash отвечает за секунды; долго ждать незачем — при сбое тексты пишет Claude (agent.writer).
+REQUEST_TIMEOUT = 90
+MAX_RETRIES = 3
 ZERO_QUOTA_RE = re.compile(r"limit:\s*0\b")
 
 
@@ -24,10 +24,13 @@ class GeminiError(Exception):
 
 
 class Gemini:
-    def __init__(self, api_key: str, model: str) -> None:
+    def __init__(self, api_key: str, model: str, proxy: str = "") -> None:
         self.model = model
         self.session = requests.Session()
         self.session.headers.update({"x-goog-api-key": api_key, "Content-Type": "application/json"})
+        if proxy:
+            # Прокси только для Gemini: Google закрывает API для части регионов.
+            self.session.proxies.update({"https": proxy, "http": proxy})
 
     def generate(self, system: str, contents: list[dict[str, Any]], json_mode: bool = False) -> dict[str, Any]:
         """Возвращает content ответа модели ({"role": "model", "parts": [...]})."""
@@ -55,7 +58,7 @@ class Gemini:
                     "подключи оплату в aistudio.google.com или поставь GEMINI_MODEL=gemini-3.8-flash"
                 )
             if resp.status_code in (429, 500, 502, 503, 504):
-                wait = min(60, 10 * attempt)
+                wait = 5 * attempt
                 log.warning("Gemini: HTTP %d, повтор через %d с", resp.status_code, wait)
                 time.sleep(wait)
                 continue

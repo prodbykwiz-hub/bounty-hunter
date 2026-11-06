@@ -14,6 +14,7 @@ from agent import coder, prompts, workspace
 from agent.config import AgentConfig, ConfigError
 from agent.gemini import Gemini, GeminiError
 from agent.github import AccountMismatch, GhError, GitHub
+from agent.writer import ClaudeWriter, Writer
 from agent.state import (
     ACTIVE_STAGES, AWAITING_POST, DRAFTING, DROPPED, POSTED, PR_OPENED, REVIEW, WORKING, Task, TaskStore,
     utc_now,
@@ -196,7 +197,7 @@ class App:
         except GeminiError as exc:
             task.stage = DRAFTING
             msg_id = self.bot.send(
-                f"⚠️ gemini не смог написать ответ для {issue_link(task)}: <code>{esc(str(exc)[:300])}</code>",
+                f"⚠️ не смог написать ответ для {issue_link(task)}: <code>{esc(str(exc)[:300])}</code>",
                 keyboard([("🔁 ещё раз", f"redo:{task.key}"), ("отмена", f"drop:{task.key}")]),
             )
             task.message_ids.append(msg_id)
@@ -486,8 +487,10 @@ def main() -> int:
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
     try:
         gh = GitHub(cfg.github_user)
-        app = App(cfg, Bot(cfg.tg_bot_token, cfg.tg_chat_id), Gemini(cfg.gemini_api_key, cfg.gemini_model),
-                  gh, TaskStore(cfg.state_file), claude)
+        # Тексты: Gemini, а если он недоступен (регион, квота) — Claude без инструментов.
+        texts = Writer(Gemini(cfg.gemini_api_key, cfg.gemini_model, cfg.gemini_proxy),
+                       ClaudeWriter(cfg.claude_bin, cfg.claude_writer_model))
+        app = App(cfg, Bot(cfg.tg_bot_token, cfg.tg_chat_id), texts, gh, TaskStore(cfg.state_file), claude)
         app.run_forever()
     except AccountMismatch as exc:
         log.error("%s", exc)

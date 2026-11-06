@@ -68,6 +68,9 @@ class AgentConfig:
     scan_repo: str = ""
     scan_workflow: str = "bounty_hunter.yml"
     scan_interval: int = 900
+    # Gemini через прокси (http://host:port); Claude пишет тексты, если Gemini недоступен.
+    gemini_proxy: str = ""
+    claude_writer_model: str = "sonnet"
 
     @classmethod
     def from_env(cls) -> AgentConfig:
@@ -108,4 +111,6 @@ class AgentConfig:
             scan_repo=scan_repo,
             scan_workflow=_env("SCAN_WORKFLOW", "bounty_hunter.yml"),
             scan_interval=_env_int("SCAN_INTERVAL", 900, minimum=300),
+            gemini_proxy=_env("GEMINI_PROXY"),
+            claude_writer_model=_env("CLAUDE_WRITER_MODEL", "sonnet"),
         )
