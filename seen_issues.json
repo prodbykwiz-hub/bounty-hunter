@@ -311,6 +311,11 @@
       "status": "spam",
       "url": "https://github.com/auscaster/frantic-board/issues/574"
     },
+    "I_kwDOS3gB3c8AAAABeHhIUA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/auscaster/frantic-board/issues/589"
+    },
     "I_kwDOS6lvZs8AAAABV6DD-A": {
       "at": "2026-11-06T13:48:28Z",
       "status": "spam",
@@ -1536,6 +1541,11 @@
       "status": "spam",
       "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1749"
     },
+    "I_kwDOSmCMss8AAAABeISBNQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/dev-kp-eloper/BountyScout/issues/1750"
+    },
     "I_kwDOTCGznM8AAAABbP1wGw": {
       "at": "2026-11-06T14:49:10Z",
       "status": "spam",
@@ -2385,6 +2395,11 @@
       "at": "2026-11-09T20:45:40Z",
       "status": "spam",
       "url": "https://github.com/freedom-winds/BountyScout/issues/1399"
+    },
+    "I_kwDOTOXMzs8AAAABeGbFHg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/freedom-winds/BountyScout/issues/1402"
     },
     "I_kwDOTR3Rz88AAAABXU_lcg": {
       "at": "2026-11-06T16:55:16Z",
@@ -3986,6 +4001,11 @@
       "status": "spam",
       "url": "https://github.com/Rohank143/BountyScout/issues/91"
     },
+    "I_kwDOVUYmlM8AAAABeI-sEg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/Rohank143/BountyScout/issues/92"
+    },
     "I_kwDOVVe5kc8AAAABc5wktA": {
       "at": "2026-11-06T07:45:58Z",
       "status": "spam",
@@ -4265,6 +4285,381 @@
       "at": "2026-11-10T02:58:46Z",
       "status": "spam",
       "url": "https://github.com/IES-BoilerRoom/cuda-warp-allreduce-verifier/issues/1"
+    },
+    "I_kwDOVp-J3s8AAAABeJNFrQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/IES-BoilerRoom/ed25519-ct-limb-verifier/issues/1"
+    },
+    "I_kwDOVp-J3s8AAAABeJNGOA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/IES-BoilerRoom/ed25519-ct-limb-verifier/issues/2"
+    },
+    "I_kwDOVp-Joc8AAAABeJNE6A": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/IES-BoilerRoom/wasm-component-canonical-abi/issues/2"
+    },
+    "I_kwDOVp-Joc8AAAABeJNEgA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/IES-BoilerRoom/wasm-component-canonical-abi/issues/1"
+    },
+    "I_kwDOVp66o88AAAABeISsVg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/10"
+    },
+    "I_kwDOVp66o88AAAABeIw0AQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/26"
+    },
+    "I_kwDOVp66o88AAAABeIw6bw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/27"
+    },
+    "I_kwDOVp66o88AAAABeIwM8g": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/20"
+    },
+    "I_kwDOVp66o88AAAABeIwSrQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/21"
+    },
+    "I_kwDOVp66o88AAAABeIwZEg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/22"
+    },
+    "I_kwDOVp66o88AAAABeIwelw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/23"
+    },
+    "I_kwDOVp66o88AAAABeIwkag": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/24"
+    },
+    "I_kwDOVp66o88AAAABeIwtxw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/25"
+    },
+    "I_kwDOVp66o88AAAABeIxAyg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/28"
+    },
+    "I_kwDOVp66o88AAAABeIxKAA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/29"
+    },
+    "I_kwDOVp66o88AAAABeJF4pQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/35"
+    },
+    "I_kwDOVp66o88AAAABeJF9-g": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/36"
+    },
+    "I_kwDOVp66o88AAAABeJFZdw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/30"
+    },
+    "I_kwDOVp66o88AAAABeJFgQQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/31"
+    },
+    "I_kwDOVp66o88AAAABeJFnLQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/32"
+    },
+    "I_kwDOVp66o88AAAABeJFt3w": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/33"
+    },
+    "I_kwDOVp66o88AAAABeJFzWQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/34"
+    },
+    "I_kwDOVp66o88AAAABeJGC9Q": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/37"
+    },
+    "I_kwDOVp66o88AAAABeJGIKQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/38"
+    },
+    "I_kwDOVp66o88AAAABeJGM4A": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-update-judging/issues/39"
+    },
+    "I_kwDOVp6nLc8AAAABeIW4Vg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/13"
+    },
+    "I_kwDOVp6nLc8AAAABeIW_VA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/14"
+    },
+    "I_kwDOVp6nLc8AAAABeIXFRQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/15"
+    },
+    "I_kwDOVp6nLc8AAAABeIXKzA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/16"
+    },
+    "I_kwDOVp6nLc8AAAABeIXQoQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/17"
+    },
+    "I_kwDOVp6nLc8AAAABeIXWlw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/18"
+    },
+    "I_kwDOVp6nLc8AAAABeIv4BA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/30"
+    },
+    "I_kwDOVp6nLc8AAAABeIvMcA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/23"
+    },
+    "I_kwDOVp6nLc8AAAABeIvR8A": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/24"
+    },
+    "I_kwDOVp6nLc8AAAABeIvY0w": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/25"
+    },
+    "I_kwDOVp6nLc8AAAABeIvftQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/26"
+    },
+    "I_kwDOVp6nLc8AAAABeIvl4g": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/27"
+    },
+    "I_kwDOVp6nLc8AAAABeIvr8w": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/28"
+    },
+    "I_kwDOVp6nLc8AAAABeIvxxg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/29"
+    },
+    "I_kwDOVp6nLc8AAAABeIwAdg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/31"
+    },
+    "I_kwDOVp6nLc8AAAABeIwHRA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/32"
+    },
+    "I_kwDOVp6nLc8AAAABeJE4eA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/37"
+    },
+    "I_kwDOVp6nLc8AAAABeJE9fg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/38"
+    },
+    "I_kwDOVp6nLc8AAAABeJEj3A": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/33"
+    },
+    "I_kwDOVp6nLc8AAAABeJEpGg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/34"
+    },
+    "I_kwDOVp6nLc8AAAABeJEuSw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/35"
+    },
+    "I_kwDOVp6nLc8AAAABeJEzdg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/36"
+    },
+    "I_kwDOVp6nLc8AAAABeJFCbw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/39"
+    },
+    "I_kwDOVp6nLc8AAAABeJFHrg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/40"
+    },
+    "I_kwDOVp6nLc8AAAABeJFM6Q": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/41"
+    },
+    "I_kwDOVp6nLc8AAAABeJFSbA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/optimism-judging/issues/42"
+    },
+    "I_kwDOVp7PC88AAAABeIWVdg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/6"
+    },
+    "I_kwDOVp7PC88AAAABeIWcbw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/7"
+    },
+    "I_kwDOVp7PC88AAAABeIWiMQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/8"
+    },
+    "I_kwDOVp7PC88AAAABeIWo7g": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/9"
+    },
+    "I_kwDOVp7PC88AAAABeImMjQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/10"
+    },
+    "I_kwDOVp7PC88AAAABeIqIqg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/18"
+    },
+    "I_kwDOVp7PC88AAAABeIx-jg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/23"
+    },
+    "I_kwDOVp7PC88AAAABeIx3_Q": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/22"
+    },
+    "I_kwDOVp7PC88AAAABeIxjww": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/19"
+    },
+    "I_kwDOVp7PC88AAAABeIxqlA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/20"
+    },
+    "I_kwDOVp7PC88AAAABeIxx5w": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/21"
+    },
+    "I_kwDOVp7PC88AAAABeIyFNQ": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/24"
+    },
+    "I_kwDOVp7PC88AAAABeIyLtw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/25"
+    },
+    "I_kwDOVp7PC88AAAABeIySZA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/26"
+    },
+    "I_kwDOVp7PC88AAAABeIyYKA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/27"
+    },
+    "I_kwDOVp7PC88AAAABeJG4bw": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/33"
+    },
+    "I_kwDOVp7PC88AAAABeJG9qg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/34"
+    },
+    "I_kwDOVp7PC88AAAABeJGdyg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/28"
+    },
+    "I_kwDOVp7PC88AAAABeJGi1Q": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/29"
+    },
+    "I_kwDOVp7PC88AAAABeJGn1A": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/30"
+    },
+    "I_kwDOVp7PC88AAAABeJGtvA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/31"
+    },
+    "I_kwDOVp7PC88AAAABeJGyzA": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/32"
+    },
+    "I_kwDOVp7PC88AAAABeJHEIg": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/35"
+    },
+    "I_kwDOVp7PC88AAAABeJHO6g": {
+      "at": "2026-11-10T23:41:18Z",
+      "status": "spam",
+      "url": "https://github.com/MrDecryptDecipher/notional-judging/issues/36"
     },
     "fl:34560110": {
       "at": "2026-11-09T10:04:27Z",
@@ -4576,6 +4971,21 @@
       "status": "sent",
       "url": "https://www.freelancer.com/projects/mobile-app-development/Account-creation-Brazil"
     },
+    "fl:40812208": {
+      "at": "2026-11-10T23:41:27Z",
+      "status": "sent",
+      "url": "https://www.freelancer.com/projects/audio-editing/Convert-AAF-for-Premiere-Audio"
+    },
+    "fl:40812240": {
+      "at": "2026-11-10T23:41:26Z",
+      "status": "sent",
+      "url": "https://www.freelancer.com/projects/asterisk-pbx/SIP-Trunk-PSTN"
+    },
+    "fl:40812315": {
+      "at": "2026-11-10T23:41:24Z",
+      "status": "sent",
+      "url": "https://www.freelancer.com/projects/pc-repair/Hardware-Diagnosis-Repair"
+    },
     "st:0b31b391-94f2-4021-bf78-f2b1b7a9c83d": {
       "at": "2026-11-06T17:45:03Z",
       "status": "sent",
@@ -4590,6 +5000,11 @@
       "at": "2026-11-06T17:45:02Z",
       "status": "sent",
       "url": "https://superteam.fun/earn/listing/rumbo-a-breakpoint-2026-gana-una-entrada-y-apoyo-para-tu-viaje"
+    },
+    "st:591423c3-bb3e-4f91-8ff0-69f163038ede": {
+      "at": "2026-11-10T23:41:23Z",
+      "status": "sent",
+      "url": "https://superteam.fun/earn/listing/build-an-autonomous-capital-agent-on-solana-and-compete-for-dollar500-in-rewards"
     },
     "st:60d20763-152d-4f92-8b55-e1ffa44ae9e4": {
       "at": "2026-11-06T17:45:06Z",
