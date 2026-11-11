@@ -9,8 +9,3 @@
 - c++, python, bash, docker, linux
 - vst3-плагины
 - свой проект: https://github.com/prodbykwiz-hub/bounty-hunter — бот, который ищет оплачиваемые задачи на github и присылает их в telegram
-
-## музыка
-
-- битмейкер: пишу биты и инструментал
-- ссылки на работы: [вставь ссылку на soundcloud / youtube / bandlab]

@@ -35,15 +35,30 @@ STABLE_TOKENS = frozenset({"USDC", "USDG", "USDT", "PYUSD", "USD"})
 FREELANCER_API = "https://www.freelancer.com/api/projects/0.1"
 FREELANCER_WEB = "https://www.freelancer.com/projects"
 # id категорий Freelancer (GET /api/projects/0.1/jobs/?job_names[]=…).
-FREELANCER_CODE_JOBS = (320, 13, 1265, 248, 1002, 31, 3278)  # C++, Python, Rust, Go, Docker, Linux, Audio Programming
-FREELANCER_MUSIC_JOBS = (2254, 693, 3561, 2173, 1984, 3304)  # Music Production, Audio Production, Mixing & Mastering,
-                                                               # Audio Mastering, Mixing Engineering, Game Music
-FREELANCER_DEFAULT_JOBS = FREELANCER_CODE_JOBS + FREELANCER_MUSIC_JOBS
+# Только код: C++, Python, Rust, Go, Docker, Linux.
+FREELANCER_DEFAULT_JOBS = (320, 13, 1265, 248, 1002, 31)
 FREELANCER_PAGE = 100
 
 # Типичные мошеннические заказы, которые попадались в выдаче.
 SCAM_RE = re.compile(r"flash\s*usdt|untraceable|fake\s+(?:review|id)|seed\s+phrase|"
                      r"(?:bypass|crack)\s+(?:kyc|license|captcha)", re.IGNORECASE)
+
+# Озвучка, музыка и видеомонтаж не нужны, даже если заказчик заодно поставил тег Python.
+# Слова «voice» или «video» сами по себе не повод: бывают voice-боты и компьютерное зрение.
+OFF_TOPIC_TITLE_RE = re.compile(
+    r"voice[\s-]*(?:over|recording|actor|actress|talent|artist)|narrat|audiobook|music|\bsing(?:er|ing)\b|"
+    r"vocal|podcast|choreograph|dubbing|\btts\b|text[\s-]to[\s-]speech|\bmix(?:ing)?\b|master(?:ing)?\b.*track|"
+    r"video\s*edit|(?:video|ugc)\s+creator",
+    re.IGNORECASE)
+OFF_TOPIC_JOB_RE = re.compile(
+    r"voice\s*(?:over|talent|acting)|audio|music|sound|singing|vocal|podcast|choreograph|audiobook|"
+    r"dubbing|mixing|mastering|video\s*(?:editing|production|services)|videography",
+    re.IGNORECASE)
+
+
+def off_topic(title: str, skills: tuple[str, ...]) -> bool:
+    return bool(OFF_TOPIC_TITLE_RE.search(title)) or any(OFF_TOPIC_JOB_RE.search(s) for s in skills)
+
 
 PLATFORM_NAMES = {"st": "Superteam Earn", "fl": "Freelancer"}
 MAX_DESCRIPTION = 6000
@@ -217,8 +232,10 @@ def parse_freelancer(payload: Any, jobs: tuple[int, ...] = ()) -> list[Gig]:
             # оставляем только те, где есть одна из выбранных категорий.
             if jobs and not {j.get("id") for j in p.get("jobs") or [] if isinstance(j, dict)} & set(jobs):
                 continue
-            reward, usd = _freelancer_budget(p)
             skills = tuple(j.get("name", "") for j in p.get("jobs") or [] if isinstance(j, dict))
+            if off_topic(str(p.get("title") or ""), skills):
+                continue
+            reward, usd = _freelancer_budget(p)
             notes = []
             if p.get("is_seller_kyc_required"):
                 notes.append("нужна верификация личности")
@@ -308,10 +325,8 @@ def format_card(gig: Gig, now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)
     esc = html.escape
     title = gig.title if len(gig.title) <= 200 else gig.title[:197] + "…"
-    icon = "🎵" if any("music" in s.lower() or "audio" in s.lower() or "mix" in s.lower()
-                      for s in gig.skills) else "💼"
     lines = [
-        f'{icon} <b><a href="{esc(gig.url)}">{esc(title)}</a></b>',
+        f'💼 <b><a href="{esc(gig.url)}">{esc(title)}</a></b>',
         f"🏷 {esc(gig.platform)}" + (f" · {esc(gig.note)}" if gig.note else ""),
         f"💰 {esc(gig.reward)}",
         f"👥 {'работ отправлено' if gig.prefix == 'st' else 'ставок'}: {gig.competitors}",
