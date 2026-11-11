@@ -29,6 +29,8 @@ esc = html.escape
 
 MAINTAINER_ROLES = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
 WATCH_GIVE_UP_DAYS = 14
+# Черновик отклика на заказ, который не отправили за двое суток, уже не нужен: на заказе десятки ставок.
+GIG_DRAFT_TTL = timedelta(hours=48)
 
 CALLBACK_ACK = {
     "take": "пишу черновик…",
@@ -421,7 +423,29 @@ class App:
 
     # --------------------------------------------------------- watcher
 
+    def expire_gig_drafts(self, now: datetime | None = None) -> int:
+        """Снимает неотправленные черновики откликов старше GIG_DRAFT_TTL одним сообщением."""
+        now = now or datetime.now(timezone.utc)
+        stale = []
+        for task in self.store.by_stage(DRAFTING, AWAITING_POST):
+            if task.kind != "gig":
+                continue
+            try:
+                updated = datetime.fromisoformat(task.updated_at.replace("Z", "+00:00"))
+            except ValueError:
+                updated = now - GIG_DRAFT_TTL
+            if now - updated >= GIG_DRAFT_TTL:
+                stale.append(task)
+        for task in stale:
+            task.stage = DROPPED
+            self.store.put(task)
+        if stale:
+            self.bot.send(f"🧹 снял {len(stale)} неотправленных черновиков откликов старше "
+                          f"{int(GIG_DRAFT_TTL.total_seconds() // 3600)} ч")
+        return len(stale)
+
     def watch(self) -> None:
+        self.expire_gig_drafts()
         for task in self.store.by_stage(POSTED):
             try:
                 self.check_task(task)
