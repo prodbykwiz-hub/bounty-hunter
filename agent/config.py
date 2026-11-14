@@ -94,11 +94,13 @@ class AgentConfig:
     def from_env(cls) -> AgentConfig:
         load_dotenv(PROJECT_ROOT / ".env")
         # gh и claude читают токены из окружения напрямую. Перевод строки в конце
-        # (его добавляет `clip` при копировании) ломает заголовок Authorization.
+        # (его добавляет `clip`) ломает заголовок Authorization, а длинный токен из
+        # `claude setup-token` при копировании из терминала рвётся переносами посередине.
+        # Внутри токенов пробелов не бывает, поэтому убираем все.
         for name in SECRET_ENV:
             value = os.environ.get(name)
-            if value is not None and value != value.strip():
-                os.environ[name] = value.strip()
+            if value is not None and "".join(value.split()) != value:
+                os.environ[name] = "".join(value.split())
         required = {
             "TG_BOT_TOKEN": _env("TG_BOT_TOKEN"),
             "TG_CHAT_ID": _env("TG_CHAT_ID"),
