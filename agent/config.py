@@ -79,6 +79,11 @@ class AgentConfig:
     port: int = 0
     public_url: str = ""
     state_gist: bool = False
+    # Автоматический режим: агент сам берёт задачи из очереди сканера, отправляет отклик
+    # и открывает PR. В Telegram приходят только уведомления.
+    auto_mode: bool = False
+    auto_max_offers_per_day: int = 3
+    auto_max_active: int = 5
     # Факты о себе для откликов на заказы Freelancer/Superteam.
     gig_profile_file: Path = PROJECT_ROOT / "agent" / "gig_profile.md"
 
@@ -136,5 +141,8 @@ class AgentConfig:
             # Render сам задаёт RENDER_EXTERNAL_URL веб-сервису.
             public_url=_env("PUBLIC_URL", _env("RENDER_EXTERNAL_URL")),
             state_gist=_env("STATE_GIST").lower() in ("1", "true", "yes"),
+            auto_mode=_env("AUTO_MODE").lower() in ("1", "true", "yes"),
+            auto_max_offers_per_day=_env_int("AUTO_MAX_OFFERS_PER_DAY", 3, minimum=1),
+            auto_max_active=_env_int("AUTO_MAX_ACTIVE", 5, minimum=1),
             gig_profile_file=Path(_env("GIG_PROFILE_FILE", str(PROJECT_ROOT / "agent" / "gig_profile.md"))),
         )

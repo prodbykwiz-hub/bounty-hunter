@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +69,26 @@ def comment_prompt(issue: dict[str, Any], instructions: list[str],
     if instructions:
         parts.append("the developer asked for these changes to the previous draft:\n- " + "\n- ".join(instructions))
     return "\n\n".join(parts)
+
+
+# Другие претенденты в обсуждении: «/attempt», «assign me», «i'd like to work on this»…
+CLAIM_RE = re.compile(
+    r"/attempt\b|\bassign\s+(?:it\s+to\s+)?me\b|\bcan\s+i\s+(?:work|take)\b|\bi(?:'d| would)\s+like\s+to\s+(?:work|take)|"
+    r"\bi(?:'m| am)\s+working\s+on\b|\blet\s+me\s+(?:work|take)\b",
+    re.IGNORECASE,
+)
+
+
+def claimants(issue: dict[str, Any], me: str) -> list[str]:
+    """Логины других людей, которые уже вызвались сделать задачу."""
+    seen: list[str] = []
+    for c in issue["comments"]:
+        login = (c.get("login") or "").lower()
+        if (login and login != me.lower() and not c.get("is_bot")
+                and c.get("association") not in ("OWNER", "MEMBER", "COLLABORATOR")
+                and CLAIM_RE.search(c.get("body") or "") and login not in seen):
+            seen.append(login)
+    return seen
 
 
 def gig_system(style: str, profile: str) -> str:

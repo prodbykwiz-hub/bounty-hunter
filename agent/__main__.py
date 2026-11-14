@@ -92,7 +92,9 @@ class App:
         self.gh.ensure_account()
         log.info("Агент запущен: gh=%s, модель=%s", self.cfg.github_user, self.cfg.gemini_model)
         active = len(self.store.by_stage(*ACTIVE_STAGES))
-        self.bot.send(f"🟢 агент запущен, задач в работе: {active}. /status — задачи, /report — отчёт")
+        mode = (f"автоматический режим: сам беру до {self.cfg.auto_max_offers_per_day} задач в день, "
+                f"тебе только уведомления" if self.cfg.auto_mode else "ручной режим: жду твоих кнопок")
+        self.bot.send(f"🟢 агент запущен, задач в работе: {active}, {mode}. /status — задачи, /report — отчёт")
         # Работа, прерванная перезапуском агента, сама не продолжится — предлагаем перезапуск.
         for task in self.store.by_stage(WORKING):
             self._offer_retry(task, "агент перезапускался, работа прервана")
@@ -246,6 +248,10 @@ class App:
         self._count_text()
         task.draft = clean_draft(draft)
         task.stage = AWAITING_POST
+        if self.cfg.auto_mode:
+            self.store.put(task)
+            self.on_post(task.key)
+            return
         self.send_draft_card(task)
 
     def _count_text(self) -> None:
@@ -309,8 +315,9 @@ class App:
         task.draft_mode, task.reply_to_comment, task.instructions = "offer", "", []
         self.store.put(task)
         self.store.bump("posted")
-        self.bot.send(f'✅ <a href="{esc(comment["url"])}">ответ опубликован</a> в {issue_link(task)}. '
-                      f"слежу за ответом мейнтейнера")
+        quote = f"\n<blockquote>{esc(task.draft)}</blockquote>" if self.cfg.auto_mode else ""
+        self.bot.send(f'📨 <a href="{esc(comment["url"])}">ответ опубликован</a> в {issue_link(task)}. '
+                      f"слежу за ответом мейнтейнера{quote}")
 
     def on_redo(self, key: str) -> None:
         task = self.store.get(key)
@@ -444,8 +451,76 @@ class App:
                           f"{int(GIG_DRAFT_TTL.total_seconds() // 3600)} ч")
         return len(stale)
 
+    # ------------------------------------------------------------ auto mode
+
+    def _auto_quota_left(self, now: datetime) -> int:
+        day = int(now.strftime("%Y%m%d"))
+        if self.store.stats.get("auto_day") != day:
+            self.store.stats["auto_day"] = day
+            self.store.stats["auto_offers_today"] = 0
+            self.store.save()
+        return self.cfg.auto_max_offers_per_day - self.store.stats.get("auto_offers_today", 0)
+
+    def auto_pick(self, now: datetime | None = None) -> int:
+        """Берёт новые задачи из очереди сканера (seen_issues.json). Возвращает, сколько взял."""
+        if not self.cfg.auto_mode or not self.cfg.scan_repo:
+            return 0
+        now = now or datetime.now(timezone.utc)
+        stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if not self.store.auto_cursor:
+            # Первый запуск: старые карточки не трогаем, берём только новые.
+            self.store.auto_cursor = stamp
+            self.store.save()
+            return 0
+        entries = self.gh.seen_entries(self.cfg.scan_repo, "seen_issues.json")
+        fresh = sorted(
+            ((v.get("at", ""), k) for k, v in entries.items()
+             if v.get("status") in ("sent", "queued") and str(v.get("at", "")) > self.store.auto_cursor
+             and not gigs.is_gig_key(k)),
+        )
+        taken = 0
+        for at, key in fresh:
+            active = len(self.store.by_stage(*ACTIVE_STAGES))
+            if self._auto_quota_left(now) <= 0 or active >= self.cfg.auto_max_active:
+                break  # курсор не двигаем: эти задачи возьмём, когда освободится место
+            self.store.auto_cursor = at
+            self.store.save()
+            if self.auto_take(key):
+                taken += 1
+        return taken
+
+    def auto_take(self, key: str) -> bool:
+        """Берёт задачу без кнопок, если она безопасна для автоматического отклика."""
+        if self.store.get(key):
+            return False
+        issue = self.gh.issue(key)
+        if issue is None or issue["state"] != "OPEN":
+            return False
+        label = f"{issue['repo']}#{issue['number']}"
+        if issue["assignees"]:
+            log.info("Авто: %s уже назначен, пропускаю", label)
+            return False
+        others = prompts.claimants(issue, self.cfg.github_user)
+        if others:
+            log.info("Авто: в %s уже вызвались %s, пропускаю", label, ", ".join(others))
+            return False
+        policy = self.gh.ai_policy(issue["repo"])
+        if policy:
+            # В правилах репо есть про ИИ: автоматом не лезем, решает человек.
+            log.info("Авто: в %s есть правила про ИИ, пропускаю", label)
+            return False
+        self.store.stats["auto_offers_today"] = self.store.stats.get("auto_offers_today", 0) + 1
+        self.store.save()
+        log.info("Авто: беру %s", label)
+        self.on_take(key)
+        return True
+
     def watch(self) -> None:
         self.expire_gig_drafts()
+        try:
+            self.auto_pick()
+        except (GhError, TelegramError, ValueError) as exc:
+            log.warning("Авто: очередь сканера не прочитана: %s", exc)
         for task in self.store.by_stage(POSTED):
             try:
                 self.check_task(task)
@@ -555,8 +630,22 @@ class App:
         task.stage = REVIEW
         self.store.put(task)
         self.send_review(task, stat, patch)
+        if self.cfg.auto_mode:
+            self.on_pr(task.key)
 
     def send_review(self, task: Task, stat: str, patch: str) -> None:
+        if self.cfg.auto_mode:
+            text = "\n\n".join([
+                f"🧩 <b>код готов: {issue_link(task)}</b>, открываю PR",
+                f"<blockquote>{esc(task.summary)}</blockquote>",
+                f"<pre>{esc(stat[-1500:])}</pre>",
+            ])
+            task.message_ids.append(self.bot.send(text))
+            task.message_ids.append(self.bot.send_document(
+                f"{task.repo.replace('/', '__')}-{task.number}.patch", patch.encode("utf-8"),
+                caption=f"diff для {issue_link(task)}"))
+            self.store.put(task)
+            return
         text = "\n\n".join([
             f"🧩 <b>готово: {issue_link(task)}</b>",
             f"<blockquote>{esc(task.summary)}</blockquote>",

@@ -48,6 +48,9 @@ services:
         value: /data/work
       - key: CLEAN_WORKDIRS
         value: "true"
+      # Сам берёт задачи, отправляет отклик и открывает PR; тебе только уведомления.
+      - key: AUTO_MODE
+        value: "true"
       # Ежедневный отчёт в 06:00 UTC (09:00 МСК)
       - key: REPORT_HOUR
         value: "6"

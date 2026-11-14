@@ -260,6 +260,8 @@ class Config:
     superteam_category: str = "All"
     freelancer_jobs: tuple[int, ...] = gigs.FREELANCER_DEFAULT_JOBS
     gig_max_per_run: int = 10
+    # Автоматический режим агента: карточки issues не шлём, а ставим в очередь (status "queued").
+    auto_mode: bool = False
 
     @classmethod
     def from_env(cls) -> Config:
@@ -336,6 +338,7 @@ class Config:
             superteam_category=superteam_category,
             freelancer_jobs=freelancer_jobs,
             gig_max_per_run=_env_int("GIG_MAX_PER_RUN", 10, minimum=1),
+            auto_mode=_env_bool("AUTO_MODE"),
         )
 
 
@@ -1104,6 +1107,14 @@ def notify(cfg: Config, seen: SeenStore, candidates: list[Candidate]) -> int:
         log.info("К отправке %d задач, лимит за запуск %d — остальные уйдут в следующий раз",
                  len(candidates), cfg.max_messages_per_run)
         candidates = candidates[-cfg.max_messages_per_run :]
+
+    if cfg.auto_mode:
+        # Агент сам заберёт задачи из seen_issues.json и пришлёт уведомление, когда откликнется.
+        for cand in candidates:
+            if not cfg.dry_run:
+                seen.add(cand.key, "queued", cand.url)
+            log.info("В очередь агенту: %s", cand.url)
+        return len(candidates)
 
     telegram = None if cfg.dry_run else TelegramClient(cfg.tg_bot_token, cfg.tg_chat_id)
     sent = 0

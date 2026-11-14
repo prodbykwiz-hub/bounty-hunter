@@ -57,8 +57,9 @@ def build(tasks: list[Task], stats: dict[str, int], scan: dict[str, int] | None,
         failed = f", с ошибкой {scan['failed']}" if scan.get("failed") else ""
         lines.append(f"• сканер: {scan['total']} запусков{failed}")
     if seen is not None:
-        sent = seen.get("sent", 0)
-        lines.append(f"• разобрано issues: {sum(seen.values())}, прислано карточек: {sent}")
+        sent, queued = seen.get("sent", 0), seen.get("queued", 0)
+        lines.append(f"• разобрано issues: {sum(seen.values())}, прислано карточек: {sent}"
+                     + (f", в очередь агенту: {queued}" if queued else ""))
 
     recent = [t for t in tasks if _changed_since(t, since)]
     # Отправленные ответы считаем счётчиком: после согласия задача уходит из стадии posted.

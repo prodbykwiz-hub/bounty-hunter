@@ -74,6 +74,8 @@ class TaskStore:
         # Счётчики для ежедневного отчёта (обнуляются после отправки) и дата последнего отчёта.
         self.stats: dict[str, int] = {}
         self.last_report = ""
+        # Автоматический режим: время последней записи seen_issues.json, которую агент уже разобрал.
+        self.auto_cursor = ""
         if path.exists():
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
@@ -83,6 +85,7 @@ class TaskStore:
                 if isinstance(stats, dict):
                     self.stats = {str(k): v for k, v in stats.items() if isinstance(v, int)}
                 self.last_report = str(raw.get("last_report") or "")
+                self.auto_cursor = str(raw.get("auto_cursor") or "")
             except (OSError, ValueError, TypeError) as exc:
                 backup = path.with_suffix(path.suffix + ".corrupt")
                 log.error("Состояние агента повреждено (%s), копия в %s", exc, backup)
@@ -116,6 +119,7 @@ class TaskStore:
             "offset": self.offset,
             "stats": self.stats,
             "last_report": self.last_report,
+            "auto_cursor": self.auto_cursor,
             "tasks": {key: asdict(task) for key, task in sorted(self.tasks.items())},
         }
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")

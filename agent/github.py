@@ -168,14 +168,19 @@ class GitHub:
         failed = sum(r.get("conclusion") in ("failure", "timed_out", "startup_failure") for r in runs)
         return {"total": int(data.get("total_count") or len(runs)), "failed": failed}
 
-    def seen_counts(self, repo: str, path: str, since: datetime) -> dict[str, int]:
-        """Сколько issues сканер разобрал с момента since, по статусам (sent, spam, …)."""
+    def seen_entries(self, repo: str, path: str) -> dict[str, dict[str, Any]]:
+        """Записи seen_issues.json сканера: {ключ: {"at", "status", "url"}}."""
         data = self.api(f"repos/{repo}/contents/{path}")
         if not isinstance(data, dict) or data.get("encoding") != "base64":
             return {}
         raw = json.loads(base64.b64decode(data.get("content", "")).decode("utf-8"))
+        issues = raw.get("issues") if isinstance(raw, dict) else None
+        return {k: v for k, v in (issues or {}).items() if isinstance(v, dict)}
+
+    def seen_counts(self, repo: str, path: str, since: datetime) -> dict[str, int]:
+        """Сколько issues сканер разобрал с момента since, по статусам (sent, queued, spam, …)."""
         counts: dict[str, int] = {}
-        for entry in (raw.get("issues") or {}).values():
+        for entry in self.seen_entries(repo, path).values():
             at = _parse_time(str(entry.get("at") or ""))
             if at is not None and at >= since.timestamp():
                 status = str(entry.get("status") or "?")
