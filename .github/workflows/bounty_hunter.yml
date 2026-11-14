@@ -77,12 +77,29 @@ jobs:
             echo "seen_issues.json не изменился"
             exit 0
           fi
+          cp seen_issues.json "$RUNNER_TEMP/ours.json"
           git commit -m "chore: update seen issues [skip ci]"
           for attempt in 1 2 3; do
             if git pull --rebase --quiet && git push --quiet; then
               exit 0
             fi
-            echo "Push не удался (попытка $attempt), повторяю"
-            sleep 5
+            # Файл успел поменять другой запуск: объединяем записи обоих, наши новее.
+            echo "Конфликт или отказ push (попытка $attempt), объединяю seen_issues.json"
+            git rebase --abort 2>/dev/null || true
+            git fetch --quiet origin "${GITHUB_REF_NAME}"
+            git reset --quiet --hard "origin/${GITHUB_REF_NAME}"
+            python - "$RUNNER_TEMP/ours.json" <<'PY'
+          import json, sys
+          ours = json.load(open(sys.argv[1], encoding="utf-8"))
+          theirs = json.load(open("seen_issues.json", encoding="utf-8"))
+          issues = dict(theirs.get("issues") or {})
+          issues.update(ours.get("issues") or {})
+          ours["issues"] = dict(sorted(issues.items()))
+          with open("seen_issues.json", "w", encoding="utf-8") as f:
+              f.write(json.dumps(ours, ensure_ascii=False, indent=2) + chr(10))
+          PY
+            git add seen_issues.json
+            git diff --cached --quiet || git commit --quiet -m "chore: update seen issues [skip ci]"
+            sleep 3
           done
           exit 1
