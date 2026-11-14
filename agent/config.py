@@ -29,6 +29,9 @@ def load_dotenv(path: Path) -> None:
         os.environ.setdefault(key, value)
 
 
+SECRET_ENV = ("GH_TOKEN", "GITHUB_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "TG_BOT_TOKEN", "GEMINI_API_KEY")
+
+
 def _env(name: str, default: str = "") -> str:
     return (os.getenv(name) or "").strip() or default
 
@@ -90,6 +93,12 @@ class AgentConfig:
     @classmethod
     def from_env(cls) -> AgentConfig:
         load_dotenv(PROJECT_ROOT / ".env")
+        # gh и claude читают токены из окружения напрямую. Перевод строки в конце
+        # (его добавляет `clip` при копировании) ломает заголовок Authorization.
+        for name in SECRET_ENV:
+            value = os.environ.get(name)
+            if value is not None and value != value.strip():
+                os.environ[name] = value.strip()
         required = {
             "TG_BOT_TOKEN": _env("TG_BOT_TOKEN"),
             "TG_CHAT_ID": _env("TG_CHAT_ID"),
