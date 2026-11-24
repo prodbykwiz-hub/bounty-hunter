@@ -76,6 +76,11 @@
       "status": "spam",
       "url": "https://github.com/SecOpsNews/news/issues/76089"
     },
+    "I_kwDOHqt2Ac8AAAABiQVFeQ": {
+      "at": "2026-11-24T23:52:19Z",
+      "status": "queued",
+      "url": "https://github.com/OrcaSlicer/OrcaSlicer/issues/17866"
+    },
     "I_kwDOI9Wqc88AAAABc5gnxw": {
       "at": "2026-11-06T00:59:42Z",
       "status": "sent",
@@ -5795,6 +5800,11 @@
       "at": "2026-11-24T22:36:29Z",
       "status": "spam",
       "url": "https://github.com/incidere/solana-agent-bounties/issues/9"
+    },
+    "I_kwDOV6pYK88AAAABiQVAcg": {
+      "at": "2026-11-24T23:52:15Z",
+      "status": "spam",
+      "url": "https://github.com/incidere/solana-agent-bounties/issues/12"
     },
     "I_kwDOVA-T7s8AAAABV6BfGQ": {
       "at": "2026-11-06T13:48:28Z",
